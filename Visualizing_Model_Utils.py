@@ -71,16 +71,14 @@ class TensorBoardImage(TensorBoard):
             self.update_freq = update_freq
         self.samples_seen = 0
         self.samples_seen_at_last_write = 0
-
-    def make_image(self, tensor):
+    def make_image(self, tensor, min_val, max_val):
         """
         Convert an numpy representation image to Image protobuf.
         Copied from https://github.com/lanpa/tensorboard-pytorch/
         """
+        print([min_val,max_val])
         tensor = np.squeeze(tensor)
         height, width = tensor.shape
-        min_val = np.min(tensor)
-        max_val = np.max(tensor)
         tensor = ((tensor - min_val) / (max_val-min_val) * 255).astype('uint8')
         image = Image.fromarray(tensor)
         output = io.BytesIO()
@@ -180,9 +178,9 @@ class TensorBoardImage(TensorBoard):
         # Load image
         print('Adding images')
         gap_x, gap_y = int(self.cols_x/10), int(self.cols_y/10)
-        out_image, out_truth, out_pred = np.empty([self.rows_x, int(self.cols_x*num_images+gap_x*(num_images-1))]),\
-                                         np.empty([self.rows_x, int(self.cols_y*num_images+gap_y*(num_images-1))]),\
-                                         np.empty([self.rows_x, int(self.cols_y * num_images + gap_y * (num_images - 1))])
+        out_image, out_truth, out_pred = np.zeros([self.rows_x, int(self.cols_x*num_images+gap_x*(num_images-1))]),\
+                                         np.zeros([self.rows_x, int(self.cols_y*num_images+gap_y*(num_images-1))]),\
+                                         np.zeros([self.rows_x, int(self.cols_y * num_images + gap_y * (num_images - 1))])
         image_indexes = np.asarray(range(len(self.data_generator)))
         np.random.shuffle(image_indexes)
         deviate = False
@@ -195,75 +193,39 @@ class TensorBoardImage(TensorBoard):
             if type(x) == list:
                 x = x[0]
             x = np.squeeze(x)
-            if x.shape[-1] == 3:
-                x = x[...,0]
             y = np.squeeze(y)
             pred = np.squeeze(pred)
-            if self.is_segmentation:
-                pred = np.argmax(pred, axis=-1)[...,None]
-                y = np.argmax(y, axis=-1)[...,None]
+            if x.shape[-1] == 3:
+                x = x[...,0]
             if len(x.shape)==3:
                 rows, cols = x.shape[1], x.shape[2]
-                slices = np.where(np.max(y, axis=(1, 2)) != 0)[0]
-                index = slices[len(slices) // 2]
             elif len(x.shape) == 2:
                 rows, cols = x.shape[0], x.shape[1]
                 y = y[None,...]
                 pred = pred[None,...]
-                index = 0
             else:
-                rows, cols = x.shape[2], x.shape[3]
-                slices = np.where(np.max(y, axis=(1, 2, 3, 4)) != 0)[0]
+                rows, cols = self.rows_x, self.cols_x
+            if self.is_segmentation:
+                pred = np.argmax(pred, axis=-1)[...,None]
+                y = np.argmax(y, axis=-1)[...,None]
+                slices = np.where(np.max(y, axis=tuple([i for i in range(1,len(y.shape))])) != 0)[0]
                 index = slices[len(slices) // 2]
+            else:
+                index = x.shape[0]//2
+
             if rows != self.rows_x or cols != self.cols_x:
                 deviate = True
                 num_images = 1
                 self.rows_x = self.rows_y = rows
                 self.cols_x = self.cols_y = cols
                 gap_x, gap_y = int(self.cols_x / 10), int(self.cols_y / 10)
-                out_image, out_truth, out_pred = np.empty(
+                out_image, out_truth, out_pred = np.zeros(
                     [self.rows_x, int(self.cols_x * num_images + gap_x * (num_images - 1))]), \
-                                                 np.empty([self.rows_y,
+                                                 np.zeros([self.rows_y,
                                                            int(self.cols_y * num_images + gap_y * (num_images - 1))]), \
-                                                 np.empty([self.rows_y,
+                                                 np.zeros([self.rows_y,
                                                            int(self.cols_y * num_images + gap_y * (num_images - 1))])
-            if len(x.shape) == 4:
-                if self.is_segmentation:
-                    self.classes = 1
-                    pred = np.argmax(pred,axis=-1)
-                    y = np.argmax(y,axis=-1)
-
-                out_image[:, self.cols_x * i + start_x:self.cols_x * (i + 1) + start_x] = x[int(self.images_x / 2), ..., -1]
-                if not self.is_segmentation:
-                    for classes in range(self.classes):
-                        out_truth[:, self.cols_y * i + start_y:self.cols_y * (i + 1) + start_y,classes] = y[
-                            0, int(self.images_y / 2), ..., classes]
-                        out_pred[:, self.cols_y * i + start_y:self.cols_y * (i + 1) + start_y, classes] = pred[
-                            0, int(self.images_y / 2), ..., classes]
-                else:
-                    if y.shape[-1] > 1 and self.is_segmentation:
-                        pred = np.argmax(pred,axis=-1)
-                        y = np.argmax(y,axis=-1)
-                    else:
-                        pred = pred[...,-1]
-                        y = y[...,-1]
-                    slices = np.where(np.max(y,axis=(0,2,3))!=0)[0]
-                    index = slices[len(slices)//2]
-                    out_image[:, self.cols_x * i + start_x:self.cols_x * (i + 1) + start_x] = x[index, ..., -1]
-                    out_truth[:, self.cols_y * i + start_y:self.cols_y * (i + 1) + start_y] = y[index, ..., -1]
-                    out_pred[:, self.cols_y * i + start_y:self.cols_y * (i + 1) + start_y] = pred[index,..., -1]
             else:
-                if rows != self.rows_x or cols != self.cols_x:
-                    num_images = 1
-                    self.rows_x = rows
-                    self.cols_x = cols
-                    gap_x, gap_y = int(self.cols_x / 10), int(self.cols_y / 10)
-                    out_image, out_truth, out_pred = np.empty(
-                        [self.rows_x, int(self.cols_x * num_images + gap_x * (num_images - 1))]), \
-                                                     np.empty([self.rows_y, int(
-                                                         self.cols_y * num_images + gap_y * (num_images - 1))]), \
-                                                     np.empty([self.rows_y,
-                                                              int(self.cols_y * num_images + gap_y * (num_images - 1))])
                 out_image[:, self.cols_x * i + start_x:self.cols_x * (i + 1) + start_x] = x[index,...]
                 out_truth[:, self.cols_y * i + start_y:self.cols_y * (i + 1) + start_y] = y[index,..., -1]
                 out_pred[:, self.cols_y * i + start_y:self.cols_y * (i + 1) + start_y] = pred[index,..., -1]
@@ -273,14 +235,16 @@ class TensorBoardImage(TensorBoard):
             np.save(os.path.join(self.save_dir,'Out_Image_' + str(epoch) + '.npy'),out_image)
             np.save(os.path.join(self.save_dir, 'Out_Truth_' + str(epoch) + '.npy'), out_truth)
             np.save(os.path.join(self.save_dir, 'Out_Pred_' + str(epoch) + '.npy'), out_pred)
-            if deviate:
-                out_pred = out_pred[...,-1]
-                out_truth = out_truth[...,-1]
-        summary = tf.Summary(value=[tf.Summary.Value(tag=self.tag+'Image', image=self.make_image(out_image))])
+        if deviate:
+            out_pred = out_pred[...,-1]
+            out_truth = out_truth[...,-1]
+        print(out_image.shape)
+        # out_image, out_truth, out_pred = x[0,...], y[0,...,-1], pred[0,...,-1]
+        summary = tf.Summary(value=[tf.Summary.Value(tag=self.tag+'Image', image=self.make_image(out_image, min_val=np.min(out_image),max_val=np.max(out_image)))])
         self.writer.add_summary(summary, epoch)
-        summary = tf.Summary(value=[tf.Summary.Value(tag=self.tag+'Ground_Truth', image=self.make_image(out_truth))])
+        summary = tf.Summary(value=[tf.Summary.Value(tag=self.tag+'Ground_Truth', image=self.make_image(out_truth,min_val=np.min(out_truth),max_val=np.max(out_truth)))])
         self.writer.add_summary(summary, epoch)
-        summary = tf.Summary(value=[tf.Summary.Value(tag=self.tag+'Prediction', image=self.make_image(out_pred))])
+        summary = tf.Summary(value=[tf.Summary.Value(tag=self.tag+'Prediction', image=self.make_image(out_pred,min_val=np.min(out_truth),max_val=np.max(out_truth)))])
         self.writer.add_summary(summary, epoch)
         return None
 
