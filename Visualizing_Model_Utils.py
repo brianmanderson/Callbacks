@@ -14,7 +14,6 @@ class TensorBoardImage(TensorBoard):
                  batch_size=32,is_segmentation=True,
                  write_graph=True,
                  write_grads=False,
-                 write_images=False,
                  embeddings_freq=0,
                  embeddings_layer_names=None,
                  embeddings_metadata=None,
@@ -58,7 +57,6 @@ class TensorBoardImage(TensorBoard):
         self.merged = None
         self.write_graph = write_graph
         self.write_grads = write_grads
-        self.write_images = write_images
         self.embeddings_freq = embeddings_freq
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata or {}
@@ -91,7 +89,7 @@ class TensorBoardImage(TensorBoard):
                                 encoded_image_string=image_string)
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-        if self.data_generator and epoch % self.image_frequency == 0 and not self.epoch_index: # If we're doing batch, leave it
+        if self.data_generator and epoch % self.image_frequency == 0 and not self.epoch_index and np.max(logs['val_dice_coef_3D'])>0.2: # If we're doing batch, leave it
             self.data_generator.on_epoch_end()
             self.add_images(epoch, self.num_images)
         if not self.validation_data and self.histogram_freq:
@@ -179,11 +177,10 @@ class TensorBoardImage(TensorBoard):
         print('Adding images')
         gap_x, gap_y = int(self.cols_x/10), int(self.cols_y/10)
         out_image, out_truth, out_pred = np.zeros([self.rows_x, int(self.cols_x*num_images+gap_x*(num_images-1))]),\
-                                         np.zeros([self.rows_x, int(self.cols_y*num_images+gap_y*(num_images-1))]),\
-                                         np.zeros([self.rows_x, int(self.cols_y * num_images + gap_y * (num_images - 1))])
+                                         np.zeros([self.rows_y, int(self.cols_y*num_images+gap_y*(num_images-1))]),\
+                                         np.zeros([self.rows_y, int(self.cols_y * num_images + gap_y * (num_images - 1))])
         image_indexes = np.asarray(range(len(self.data_generator)))
         np.random.shuffle(image_indexes)
-        deviate = False
         for i in range(num_images):
             image_index = image_indexes[i]
             start_x, start_y = int(gap_x * i), int(gap_y * i)
@@ -214,7 +211,6 @@ class TensorBoardImage(TensorBoard):
                 index = x.shape[0]//2
 
             if rows != self.rows_x or cols != self.cols_x:
-                deviate = True
                 num_images = 1
                 self.rows_x = self.rows_y = rows
                 self.cols_x = self.cols_y = cols
@@ -225,7 +221,13 @@ class TensorBoardImage(TensorBoard):
                                                            int(self.cols_y * num_images + gap_y * (num_images - 1))]), \
                                                  np.zeros([self.rows_y,
                                                            int(self.cols_y * num_images + gap_y * (num_images - 1))])
+                out_image[...] = x[index,...]
+                out_truth[...] = y[index,..., -1]
+                out_pred[...] = pred[index,..., -1]
+                break
             else:
+                if len(x.shape) == 4:
+                    x = x[...,-1]
                 out_image[:, self.cols_x * i + start_x:self.cols_x * (i + 1) + start_x] = x[index,...]
                 out_truth[:, self.cols_y * i + start_y:self.cols_y * (i + 1) + start_y] = y[index,..., -1]
                 out_pred[:, self.cols_y * i + start_y:self.cols_y * (i + 1) + start_y] = pred[index,..., -1]
@@ -235,9 +237,6 @@ class TensorBoardImage(TensorBoard):
             np.save(os.path.join(self.save_dir,'Out_Image_' + str(epoch) + '.npy'),out_image)
             np.save(os.path.join(self.save_dir, 'Out_Truth_' + str(epoch) + '.npy'), out_truth)
             np.save(os.path.join(self.save_dir, 'Out_Pred_' + str(epoch) + '.npy'), out_pred)
-        if deviate:
-            out_pred = out_pred[...,-1]
-            out_truth = out_truth[...,-1]
         print(out_image.shape)
         # out_image, out_truth, out_pred = x[0,...], y[0,...,-1], pred[0,...,-1]
         summary = tf.Summary(value=[tf.Summary.Value(tag=self.tag+'Image', image=self.make_image(out_image, min_val=np.min(out_image),max_val=np.max(out_image)))])
