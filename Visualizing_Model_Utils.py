@@ -89,7 +89,7 @@ class TensorBoardImage(TensorBoard):
                                 encoded_image_string=image_string)
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-        if self.data_generator and epoch % self.image_frequency == 0 and not self.epoch_index and np.max(logs['val_dice_coef_3D'])>0.2: # If we're doing batch, leave it
+        if self.data_generator and epoch % self.image_frequency == 0 and not self.epoch_index: # If we're doing batch, leave it,  and np.max(logs['val_dice_coef_3D'])>0.2
             self.data_generator.on_epoch_end()
             self.add_images(epoch, self.num_images)
         if not self.validation_data and self.histogram_freq:
