@@ -1,6 +1,6 @@
 from keras.callbacks import TensorBoard
 import keras.backend as K
-from TensorflowUtils import np, plot_scroll_Image
+import numpy as np
 import cv2, os
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -72,6 +72,7 @@ class TensorBoardImage(TensorBoard):
             self.update_freq = update_freq
         self.samples_seen = 0
         self.samples_seen_at_last_write = 0
+
     def make_image(self, tensor, min_val, max_val):
         """
         Convert an numpy representation image to Image protobuf.
@@ -90,6 +91,7 @@ class TensorBoardImage(TensorBoard):
                                 width=width,
                                 colorspace=1,
                                 encoded_image_string=image_string)
+
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
         if self.data_generator and epoch % self.image_frequency == 0 and not self.epoch_index: # If we're doing batch, leave it,  and np.max(logs['val_dice_coef_3D'])>0.2
@@ -212,7 +214,6 @@ class TensorBoardImage(TensorBoard):
             self.writer.add_summary(summary, epoch)
         return None
 
-
     def add_images(self, epoch, num_images=3):
         # Load image
         print('Adding images')
@@ -288,6 +289,7 @@ class TensorBoardImage(TensorBoard):
         self.writer.add_summary(summary, epoch)
         return None
 
+
 def visualize_model_tensorboard(model ,tensorboard_output):
     if not os.path.exists(tensorboard_output):
         os.makedirs(tensorboard_output)
@@ -296,6 +298,7 @@ def visualize_model_tensorboard(model ,tensorboard_output):
     tensorboard.set_model(model)
     tensorboard._write_logs({}, 0)
     return None
+
 
 def make_grid_from_activation(layer_activation):
     n_features = layer_activation.shape[-1]
