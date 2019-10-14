@@ -335,7 +335,7 @@ class visualization_model_class(object):
     def __init__(self, model,desired_layer_names=None, save_images=False):
         self.save_images = save_images
         self.out_path = None
-        all_layers = model.layers[1:]
+        all_layers = model.layers[:]
         all_layers = [layer for layer in all_layers if layer.name.find('mask') == -1 and
                       layer.name.lower().find('input') == -1 and
                       layer.name.lower().find('batch_normalization') == -1 and
@@ -358,6 +358,7 @@ class visualization_model_class(object):
         if not self.out_path and self.save_images:
             self.define_output(os.path.join('.','activation_outputs'))
         image_index = 0
+        print(self.layer_names)
         for layer_name, layer_activation in zip(self.layer_names, self.activations):
             print(layer_name)
             print(self.layer_names.index(layer_name) / len(self.layer_names) * 100)
