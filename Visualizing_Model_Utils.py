@@ -332,7 +332,8 @@ def make_grid_from_activation(layer_activation):
 
 
 class visualization_model_class(object):
-    def __init__(self, model,desired_layer_names=None):
+    def __init__(self, model,desired_layer_names=None, save_images=False):
+        self.save_images = save_images
         self.out_path = None
         all_layers = model.layers[1:]
         all_layers = [layer for layer in all_layers if layer.name.find('mask') == -1 and
@@ -354,7 +355,7 @@ class visualization_model_class(object):
             os.makedirs(self.out_path)
 
     def plot_activations(self):
-        if not self.out_path:
+        if not self.out_path and self.save_images:
             self.define_output(os.path.join('.','activation_outputs'))
         image_index = 0
         for layer_name, layer_activation in zip(self.layer_names, self.activations):
@@ -367,8 +368,9 @@ class visualization_model_class(object):
             plt.title(layer_name)
             plt.grid(False)
             plt.imshow(display_grid, aspect='auto', cmap='gray')
-            plt.savefig(os.path.join(self.out_path, str(image_index) + '_' + layer_name + '.png'))
-            plt.close()
+            if self.save_images:
+                plt.savefig(os.path.join(self.out_path, str(image_index) + '_' + layer_name + '.png'))
+                plt.close()
             image_index += 1
 
 def visualize_model(model, img_tensor, out_path = os.path.join('.','activation_outputs')):
