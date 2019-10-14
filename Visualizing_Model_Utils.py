@@ -18,7 +18,8 @@ class TensorBoardImage(TensorBoard):
                  embeddings_layer_names=None,
                  embeddings_metadata=None,
                  embeddings_data=None,save_dir = None,batch_steps=None,
-                 update_freq='epoch', tag='', data_generator=None,image_frequency=5, num_images=3):
+                 update_freq='epoch', tag='', data_generator=None,image_frequency=5, num_images=3, conv_names=None,
+                 write_images=True):
         super().__init__(log_dir=log_dir,
                  histogram_freq=0,
                  batch_size=32,
@@ -30,6 +31,8 @@ class TensorBoardImage(TensorBoard):
                  embeddings_metadata=None,
                  embeddings_data=None,
                  update_freq='epoch')
+        self.write_images = write_images
+        self.conv_names = conv_names
         self.is_segmentation = is_segmentation
         if batch_steps:
             self.epoch_index = 0
@@ -91,7 +94,13 @@ class TensorBoardImage(TensorBoard):
         logs = logs or {}
         if self.data_generator and epoch % self.image_frequency == 0 and not self.epoch_index: # If we're doing batch, leave it,  and np.max(logs['val_dice_coef_3D'])>0.2
             self.data_generator.on_epoch_end()
-            self.add_images(epoch, self.num_images)
+            if self.write_images:
+                self.add_images(epoch, self.num_images)
+            if self.conv_names is not None:
+                self.add_conv(epoch)
+
+
+
         if not self.validation_data and self.histogram_freq:
             raise ValueError("If printing histograms, validation_data must be "
                              "provided, and cannot be a generator.")
@@ -171,6 +180,38 @@ class TensorBoardImage(TensorBoard):
         else:
             index = self.samples_seen
         self._write_logs(logs, index)
+
+    def add_conv(self, epoch):
+        layer_names = [i.name for i in self.model.layers]
+        for conv_name in self.conv_names:
+            weights = self.model.layers[layer_names.index(conv_name)].get_weights()[0][:, :, 0, :]
+            n_features = weights.shape[-1]
+            split = 2
+            while n_features / split % 2 == 0 and n_features / split >= split:
+                split *= 2
+            split /= 2
+            images_per_row = int(n_features // split)
+            if len(weights.shape) == 4:
+                rows_size = weights.shape[1]
+                cols_size = weights.shape[2]
+            else:
+                rows_size = weights.shape[0]
+                cols_size = weights.shape[1]
+            n_cols = n_features // images_per_row
+            out_image = np.ones(
+                (rows_size * images_per_row + images_per_row - 1, n_cols * cols_size + n_cols - 1)) * np.min(weights)
+            step = 0
+            for col in range(n_cols):
+                for row in range(images_per_row):
+                    weight = weights[..., step]
+                    weight = (weight - np.mean(weight)) / np.std(weight)
+                    out_image[row + row * rows_size:row + (row + 1) * rows_size,
+                    col + col * cols_size:col + (col + 1) * cols_size] = weight
+                    step += 1
+            summary = tf.Summary(value=[tf.Summary.Value(tag=self.tag+conv_name, image=self.make_image(out_image, min_val=np.min(out_image),max_val=np.max(out_image)))])
+            self.writer.add_summary(summary, epoch)
+        return None
+
 
     def add_images(self, epoch, num_images=3):
         # Load image
