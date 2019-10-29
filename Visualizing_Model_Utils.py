@@ -222,6 +222,8 @@ class TensorBoardImage(TensorBoard):
         image_indexes = np.asarray(range(len(self.data_generator)))
         np.random.shuffle(image_indexes)
         for i in range(num_images):
+            if len(image_indexes) < i:
+                continue
             image_index = image_indexes[i]
             start_x, start_y = int(gap_x * i), int(gap_y * i)
             print(i)
