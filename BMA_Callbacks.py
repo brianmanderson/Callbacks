@@ -1,8 +1,86 @@
 # Please note reference to call back in CyclicLR_onecycle, this has been slightly adapted from the original model
 import numpy as np
+from keras.callbacks import ModelCheckpoint
 
 
 def dice_coef_3D(y_true, y_pred, smooth=0.0001):
     intersection = np.sum(y_true[...,1:] * y_pred[...,1:])
     union = np.sum(y_true[...,1:]) + np.sum(y_pred[...,1:])
     return (2. * intersection + smooth) / (union + smooth)
+
+class ModelCheckpoint_new(ModelCheckpoint):
+
+    def __init__(self, filepath, monitor='val_loss', verbose=0,
+                 save_best_only=False, save_weights_only=False,
+                 mode='auto', period=1, model=None):
+        self.is_gpu_model = False
+        if model:
+            self.save_model = model
+            self.is_gpu_model = True
+        super(ModelCheckpoint, self).__init__()
+        self.monitor = monitor
+        self.verbose = verbose
+        self.filepath = filepath
+        self.save_best_only = save_best_only
+        self.save_weights_only = save_weights_only
+        self.period = period
+        self.epochs_since_last_save = 0
+
+        if mode not in ['auto', 'min', 'max']:
+            warnings.warn('ModelCheckpoint mode %s is unknown, '
+                          'fallback to auto mode.' % (mode),
+                          RuntimeWarning)
+            mode = 'auto'
+
+        if mode == 'min':
+            self.monitor_op = np.less
+            self.best = np.Inf
+        elif mode == 'max':
+            self.monitor_op = np.greater
+            self.best = -np.Inf
+        else:
+            if 'acc' in self.monitor or self.monitor.startswith('fmeasure'):
+                self.monitor_op = np.greater
+                self.best = -np.Inf
+            else:
+                self.monitor_op = np.less
+                self.best = np.Inf
+    def set_path(self, path):
+        self.path = path
+
+    def on_epoch_end(self, epoch, logs=None):
+        if not self.is_gpu_model:
+            self.save_model = self.model
+        self.epoch = epoch + 1
+        self.epochs_since_last_save += 1
+        if self.epochs_since_last_save >= self.period:
+            filepath = self.filepath.replace('{epoch:02d}',str(epoch + 1))
+            if self.save_best_only:
+                current = logs.get(self.monitor)
+                if current is None:
+                    warnings.warn('Can save best model only with %s available, '
+                                  'skipping.' % (self.monitor), RuntimeWarning)
+                else:
+                    if self.monitor_op(current, self.best):
+                        if self.verbose > 0:
+                            print('\nEpoch %05d: %s improved from %0.5f to %0.5f,'
+                                  ' saving model to %s'
+                                  % (epoch + 1, self.monitor, self.best,
+                                     current, filepath))
+                        self.best = current
+                        if self.save_weights_only:
+                            self.model.save_weights(filepath, overwrite=True)
+                        else:
+                            self.model.save(filepath, overwrite=True)
+                    else:
+                        if self.verbose > 0:
+                            print('\nEpoch %05d: %s did not improve from %0.5f' %
+                                  (epoch + 1, self.monitor, self.best))
+            else:
+                self.epochs_since_last_save = 0
+                if self.verbose > 0:
+                    print('\nEpoch %05d: saving model to %s' % (epoch + 1, filepath))
+                if self.save_weights_only:
+                    self.save_model.save_weights(filepath, overwrite=True)
+                else:
+                    self.save_model.save(filepath, overwrite=True)
