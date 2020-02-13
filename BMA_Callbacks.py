@@ -1,8 +1,10 @@
 # Please note reference to call back in CyclicLR_onecycle, this has been slightly adapted from the original model
 import numpy as np
-from tensorflow.keras.callbacks import Callback
+from tensorflow.python.keras.callbacks import Callback
 import warnings
-from tensorflow.keras.backend import get_value
+from tensorflow.python.keras.backend import get_value
+from tensorflow.python.ops import summary_ops_v2
+from tensorflow.python.eager import context
 
 
 def dice_coef_3D(y_true, y_pred, smooth=0.0001):
@@ -95,4 +97,4 @@ class Add_LR_To_Tensorboard(Callback):
     def on_epoch_end(self, epoch, logs={}):
         if logs is not None:
             logs['learning_rate'] = get_value(self.model.optimizer.lr)
-        return logs
+        self._log_metrics({'learning_rate':get_value(self.model.optimizer.lr)}, prefix='epoch_', step=epoch)

@@ -1,4 +1,4 @@
-from tensorflow.keras.callbacks import TensorBoard, Callback
+from tensorflow.python.keras.callbacks import TensorBoard, Callback
 from tensorflow.python.keras import backend as K
 import numpy as np
 import os, six
@@ -11,6 +11,7 @@ from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import variables, array_ops
 from tensorflow.python.ops import math_ops
+from tensorflow.python.keras.backend import get_value
 
 
 class TensorBoardImage_old(TensorBoard):
@@ -478,9 +479,9 @@ class TensorBoardImage(Callback):
             np.save(os.path.join(self.save_dir, 'Out_Pred_' + str(epoch) + '.npy'), out_pred)
         print(out_image.shape)
         out_image = ((out_image - np.min(out_image)) / (np.max(out_image) - np.min(out_image)) * 255).astype('uint8')
+        out_pred = ((out_pred - np.min(out_truth)) / (np.max(out_truth) - np.min(out_truth)) * 255).astype('uint8')
         out_truth = ((out_truth - np.min(out_truth)) / (np.max(out_truth) - np.min(out_truth)) * 255).astype('uint8')
-        out_pred = ((out_pred - np.min(out_pred)) / (np.max(out_pred) - np.min(out_pred)) * 255).astype('uint8')
-        writer = self._get_writer(self._validation_run_name)
+        writer = self._get_writer(self._train_run_name)
         with context.eager_mode(),  writer.as_default(),  summary_ops_v2.always_record_summaries():
             for image, name in zip([out_image,out_pred,out_truth],['Image','Prediction','Ground_Truth']):
                 w_img = array_ops.squeeze(image)
@@ -498,6 +499,10 @@ class TensorBoardImage(Callback):
                 self.add_images(epoch, self.num_images)
             if self.conv_names is not None:
                 self.add_conv(epoch)
+        if logs is not None:
+            logs['val_learning_rate'] = get_value(self.model.optimizer.lr)
+        else:
+            logs = {'val_learning_rate':get_value(self.model.optimizer.lr)}
         self._log_metrics(logs, prefix='epoch_', step=epoch)
 
         if self.histogram_freq and epoch % self.histogram_freq == 0:
@@ -556,113 +561,6 @@ class TensorBoardImage(Callback):
         self._prev_summary_writer = context.context().summary_writer
         self._prev_summary_recording = context.context().summary_recording
         self._prev_summary_step = context.context().summary_step
-
-    def _configure_embeddings(self):
-        """Configure the Projector for embeddings."""
-        # TODO(omalleyt): Add integration tests.
-        from tensorflow.python.keras.layers import embeddings
-        try:
-            from tensorboard.plugins import projector
-        except ImportError:
-            raise ImportError('Failed to import TensorBoard. Please make sure that '
-                              'TensorBoard integration is complete."')
-        config = projector.ProjectorConfig()
-        for layer in self.model.layers:
-            if isinstance(layer, embeddings.Embedding):
-                embedding = config.embeddings.add()
-                embedding.tensor_name = layer.embeddings.name
-
-                if self.embeddings_metadata is not None:
-                    if isinstance(self.embeddings_metadata, str):
-                        embedding.metadata_path = self.embeddings_metadata
-                    else:
-                        if layer.name in embedding.metadata_path:
-                            embedding.metadata_path = self.embeddings_metadata.pop(layer.name)
-
-        if self.embeddings_metadata:
-            raise ValueError('Unrecognized `Embedding` layer names passed to '
-                             '`keras.callbacks.TensorBoard` `embeddings_metadata` '
-                             'argument: ' + str(self.embeddings_metadata.keys()))
-
-        class DummyWriter(object):
-            """Dummy writer to conform to `Projector` API."""
-
-            def __init__(self, logdir):
-                self.logdir = logdir
-
-            def get_logdir(self):
-                return self.logdir
-
-        writer = DummyWriter(self.log_dir)
-        projector.visualize_embeddings(writer, config)
-
-    def _close_writers(self):
-        """Close all remaining open file writers owned by this callback.
-
-        If there are no such file writers, this is a no-op.
-        """
-        with context.eager_mode():
-            for writer in six.itervalues(self._writers):
-                writer.close()
-            self._writers.clear()
-
-    def _get_writer(self, writer_name):
-        """Get a summary writer for the given subdirectory under the logdir.
-
-        A writer will be created if it does not yet exist.
-
-        Arguments:
-          writer_name: The name of the directory for which to create or
-            retrieve a writer. Should be either `self._train_run_name` or
-            `self._validation_run_name`.
-
-        Returns:
-          A `SummaryWriter` object.
-        """
-        if writer_name not in self._writers:
-            path = os.path.join(self.log_dir, writer_name)
-            writer = summary_ops_v2.create_file_writer_v2(path)
-            self._writers[writer_name] = writer
-        return self._writers[writer_name]
-
-    def _set_default_writer(self, writer_name):
-        """Sets the default writer for custom batch-level summaries."""
-        if self.update_freq == 'epoch':
-            # Writer is only used for custom summaries, which are written
-            # batch-by-batch.
-            return
-        writer = self._get_writer(writer_name)
-        step = self._total_batches_seen[writer_name]
-        context.context().summary_writer = writer
-
-        def _should_record():
-            return math_ops.equal(step % self.update_freq, 0)
-
-        context.context().summary_recording = _should_record
-        summary_ops_v2.set_step(step)
-
-    def _init_batch_steps(self):
-        """Create the total batch counters."""
-        if ops.executing_eagerly_outside_functions():
-            # Variables are needed for the `step` value of custom tf.summaries
-            # to be updated inside a tf.function.
-            self._total_batches_seen = {
-                self._train_run_name: variables.Variable(0, dtype='int64'),
-                self._validation_run_name: variables.Variable(0, dtype='int64')
-            }
-        else:
-            # Custom tf.summaries are not supported in legacy graph mode.
-            self._total_batches_seen = {
-                self._train_run_name: 0,
-                self._validation_run_name: 0
-            }
-
-    def _increment_step(self, writer_name):
-        step = self._total_batches_seen[writer_name]
-        if isinstance(step, variables.Variable):
-            step.assign_add(1)
-        else:
-            self._total_batches_seen[writer_name] += 1
 
     def on_train_begin(self, logs=None):
         self._init_batch_steps()
@@ -822,6 +720,114 @@ class TensorBoardImage(Callback):
         embeddings_ckpt = os.path.join(self.log_dir, 'train',
                                        'keras_embedding.ckpt-{}'.format(epoch))
         self.model.save_weights(embeddings_ckpt)
+
+    def _configure_embeddings(self):
+        """Configure the Projector for embeddings."""
+        # TODO(omalleyt): Add integration tests.
+        from tensorflow.python.keras.layers import embeddings
+        try:
+            from tensorboard.plugins import projector
+        except ImportError:
+            raise ImportError('Failed to import TensorBoard. Please make sure that '
+                              'TensorBoard integration is complete."')
+        config = projector.ProjectorConfig()
+        for layer in self.model.layers:
+            if isinstance(layer, embeddings.Embedding):
+                embedding = config.embeddings.add()
+                embedding.tensor_name = layer.embeddings.name
+
+                if self.embeddings_metadata is not None:
+                    if isinstance(self.embeddings_metadata, str):
+                        embedding.metadata_path = self.embeddings_metadata
+                    else:
+                        if layer.name in embedding.metadata_path:
+                            embedding.metadata_path = self.embeddings_metadata.pop(layer.name)
+
+        if self.embeddings_metadata:
+            raise ValueError('Unrecognized `Embedding` layer names passed to '
+                             '`keras.callbacks.TensorBoard` `embeddings_metadata` '
+                             'argument: ' + str(self.embeddings_metadata.keys()))
+
+        class DummyWriter(object):
+            """Dummy writer to conform to `Projector` API."""
+
+            def __init__(self, logdir):
+                self.logdir = logdir
+
+            def get_logdir(self):
+                return self.logdir
+
+        writer = DummyWriter(self.log_dir)
+        projector.visualize_embeddings(writer, config)
+
+    def _close_writers(self):
+        """Close all remaining open file writers owned by this callback.
+
+        If there are no such file writers, this is a no-op.
+        """
+        with context.eager_mode():
+            for writer in six.itervalues(self._writers):
+                writer.close()
+            self._writers.clear()
+
+    def _get_writer(self, writer_name):
+        """Get a summary writer for the given subdirectory under the logdir.
+
+        A writer will be created if it does not yet exist.
+
+        Arguments:
+          writer_name: The name of the directory for which to create or
+            retrieve a writer. Should be either `self._train_run_name` or
+            `self._validation_run_name`.
+
+        Returns:
+          A `SummaryWriter` object.
+        """
+        if writer_name not in self._writers:
+            path = os.path.join(self.log_dir, writer_name)
+            writer = summary_ops_v2.create_file_writer_v2(path)
+            self._writers[writer_name] = writer
+        return self._writers[writer_name]
+
+    def _set_default_writer(self, writer_name):
+        """Sets the default writer for custom batch-level summaries."""
+        if self.update_freq == 'epoch':
+            # Writer is only used for custom summaries, which are written
+            # batch-by-batch.
+            return
+        writer = self._get_writer(writer_name)
+        step = self._total_batches_seen[writer_name]
+        context.context().summary_writer = writer
+
+        def _should_record():
+            return math_ops.equal(step % self.update_freq, 0)
+
+        context.context().summary_recording = _should_record
+        summary_ops_v2.set_step(step)
+
+    def _init_batch_steps(self):
+        """Create the total batch counters."""
+        if ops.executing_eagerly_outside_functions():
+            # Variables are needed for the `step` value of custom tf.summaries
+            # to be updated inside a tf.function.
+            self._total_batches_seen = {
+                self._train_run_name: variables.Variable(0, dtype='int64'),
+                self._validation_run_name: variables.Variable(0, dtype='int64')
+            }
+        else:
+            # Custom tf.summaries are not supported in legacy graph mode.
+            self._total_batches_seen = {
+                self._train_run_name: 0,
+                self._validation_run_name: 0
+            }
+
+    def _increment_step(self, writer_name):
+        step = self._total_batches_seen[writer_name]
+        if isinstance(step, variables.Variable):
+            step.assign_add(1)
+        else:
+            self._total_batches_seen[writer_name] += 1
+
 
 if __name__ == '__main__':
     pass
