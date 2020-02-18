@@ -1,4 +1,5 @@
-from tensorflow.python.keras.callbacks import TensorBoard, Callback
+from tensorflow.python.keras.callbacks import Callback
+from tensorflow.python.keras.callbacks_v1 import TensorBoard
 from tensorflow.python.keras import backend as K
 import numpy as np
 import os, six
@@ -14,7 +15,7 @@ from tensorflow.python.ops import math_ops
 from tensorflow.python.keras.backend import get_value
 
 
-class TensorBoardImage_old(TensorBoard):
+class TensorBoardImage(TensorBoard):
     def __init__(self, log_dir='./logs',
                  histogram_freq=0,
                  batch_size=32,is_segmentation=True,
@@ -26,10 +27,10 @@ class TensorBoardImage_old(TensorBoard):
                  embeddings_data=None,save_dir = None,batch_steps=None,
                  update_freq='epoch', tag='', data_generator=None,
                  image_frequency=5, num_images=3, conv_names=None,
-                 write_images=True):
+                 write_images=True, profile_batch=0):
         super().__init__(log_dir=log_dir,
                  histogram_freq=0,
-                 batch_size=32,
+                 batch_size=32,profile_batch=profile_batch,
                  write_graph=True,
                  write_grads=False,
                  write_images=False,
@@ -318,7 +319,7 @@ class TensorBoardImage_old(TensorBoard):
         return None
 
 
-class TensorBoardImage(Callback):
+class TensorBoardImage_v2(Callback):
     def __init__(self, log_dir='logs', histogram_freq=0, write_graph=True, write_images=False, update_freq='epoch',
                  profile_batch=2, embeddings_freq=0, embeddings_metadata=None,
                  image_frequency=5, data_generator=None, num_images=3, conv_names=None,

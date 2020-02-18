@@ -97,4 +97,4 @@ class Add_LR_To_Tensorboard(Callback):
     def on_epoch_end(self, epoch, logs={}):
         if logs is not None:
             logs['learning_rate'] = get_value(self.model.optimizer.lr)
-        self._log_metrics({'learning_rate':get_value(self.model.optimizer.lr)}, prefix='epoch_', step=epoch)
+        return logs
