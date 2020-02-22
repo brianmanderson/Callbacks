@@ -89,7 +89,7 @@ class TensorBoardImage(TensorBoard):
             #     writer = self.val_writer
             # else:
             #     writer = self.writer
-            summary = tf.compat.v1.Summary()
+            summary = tf.Summary()
             summary_value = summary.value.add()
             if isinstance(value, np.ndarray):
                 summary_value.simple_value = value.item()
@@ -114,7 +114,7 @@ class TensorBoardImage(TensorBoard):
         image.save(output, format='PNG')
         image_string = output.getvalue()
         output.close()
-        return tf.compat.v1.Summary.Image(height=height,
+        return tf.Summary.Image(height=height,
                                 width=width,
                                 colorspace=1,
                                 encoded_image_string=image_string)
@@ -237,7 +237,7 @@ class TensorBoardImage(TensorBoard):
                     out_image[row + row * rows_size:row + (row + 1) * rows_size,
                     col + col * cols_size:col + (col + 1) * cols_size] = weight
                     step += 1
-            summary = tf.compat.v1.Summary(value=[tf.compat.v1.Summary.Value(tag=self.tag+conv_name, image=self.make_image(out_image, min_val=np.min(out_image),max_val=np.max(out_image)))])
+            summary = tf.Summary(value=[tf.Summary.Value(tag=self.tag+conv_name, image=self.make_image(out_image, min_val=np.min(out_image),max_val=np.max(out_image)))])
             self.writer.add_summary(summary, epoch)
         return None
 
@@ -310,11 +310,11 @@ class TensorBoardImage(TensorBoard):
             np.save(os.path.join(self.save_dir, 'Out_Pred_' + str(epoch) + '.npy'), out_pred)
         print(out_image.shape)
         # out_image, out_truth, out_pred = x[0,...], y[0,...,-1], pred[0,...,-1]
-        summary = tf.compat.v1.Summary(value=[tf.compat.v1.Summary.Value(tag=self.tag+'Image', image=self.make_image(out_image, min_val=np.min(out_image),max_val=np.max(out_image)))])
+        summary = tf.Summary(value=[tf.Summary.Value(tag=self.tag+'Image', image=self.make_image(out_image, min_val=np.min(out_image),max_val=np.max(out_image)))])
         self.writer.add_summary(summary, epoch)
-        summary = tf.compat.v1.Summary(value=[tf.compat.v1.Summary.Value(tag=self.tag+'Ground_Truth', image=self.make_image(out_truth,min_val=np.min(out_truth),max_val=np.max(out_truth)))])
+        summary = tf.Summary(value=[tf.Summary.Value(tag=self.tag+'Ground_Truth', image=self.make_image(out_truth,min_val=np.min(out_truth),max_val=np.max(out_truth)))])
         self.writer.add_summary(summary, epoch)
-        summary = tf.compat.v1.Summary(value=[tf.compat.v1.Summary.Value(tag=self.tag+'Prediction', image=self.make_image(out_pred,min_val=np.min(out_truth),max_val=np.max(out_truth)))])
+        summary = tf.Summary(value=[tf.Summary.Value(tag=self.tag+'Prediction', image=self.make_image(out_pred,min_val=np.min(out_truth),max_val=np.max(out_truth)))])
         self.writer.add_summary(summary, epoch)
         return None
 
@@ -407,7 +407,7 @@ class TensorBoardImage_v2(Callback):
                     out_image[row + row * rows_size:row + (row + 1) * rows_size,
                     col + col * cols_size:col + (col + 1) * cols_size] = weight
                     step += 1
-            summary = tf.compat.v1.Summary(value=[tf.compat.v1.Summary.Value(tag=self.tag+conv_name, image=self.make_image(out_image, min_val=np.min(out_image),max_val=np.max(out_image)))])
+            summary = tf.Summary(value=[tf.Summary.Value(tag=self.tag+conv_name, image=self.make_image(out_image, min_val=np.min(out_image),max_val=np.max(out_image)))])
             self.writer.add_summary(summary, epoch)
         return None
 
