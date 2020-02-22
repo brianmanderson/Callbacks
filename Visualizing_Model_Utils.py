@@ -3,7 +3,7 @@ from tensorflow.python.keras.callbacks_v1 import TensorBoard
 from tensorflow.python.keras import backend as K
 import numpy as np
 import os, six
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from PIL import Image
 import io
 from tensorflow.python.ops import summary_ops_v2
