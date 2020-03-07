@@ -13,6 +13,7 @@ from tensorflow.python.framework import ops
 from tensorflow.python.ops import variables, array_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.keras.backend import get_value
+from .Plot_And_Scroll_Images.Plot_Scroll_Images import plot_scroll_Image
 
 
 class TensorBoardImage(TensorBoard):
@@ -309,7 +310,6 @@ class TensorBoardImage(TensorBoard):
             np.save(os.path.join(self.save_dir, 'Out_Truth_' + str(epoch) + '.npy'), out_truth)
             np.save(os.path.join(self.save_dir, 'Out_Pred_' + str(epoch) + '.npy'), out_pred)
         print(out_image.shape)
-        # out_image, out_truth, out_pred = x[0,...], y[0,...,-1], pred[0,...,-1]
         summary = tf.Summary(value=[tf.Summary.Value(tag=self.tag+'Image', image=self.make_image(out_image, min_val=np.min(out_image),max_val=np.max(out_image)))])
         self.writer.add_summary(summary, epoch)
         summary = tf.Summary(value=[tf.Summary.Value(tag=self.tag+'Ground_Truth', image=self.make_image(out_truth,min_val=np.min(out_truth),max_val=np.max(out_truth)))])
