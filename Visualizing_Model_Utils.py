@@ -122,7 +122,7 @@ class TensorBoardImage(TensorBoard):
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-        if self.data_generator and epoch % self.image_frequency == 0 and not self.epoch_index: # If we're doing batch, leave it,  and np.max(logs['val_dice_coef_3D'])>0.2
+        if self.data_generator and epoch % self.image_frequency == 0 and not self.epoch_index and epoch > 0: # If we're doing batch, leave it,  and np.max(logs['val_dice_coef_3D'])>0.2
             self.data_generator.on_epoch_end()
             if self.write_images:
                 self.add_images(epoch, self.num_images)
