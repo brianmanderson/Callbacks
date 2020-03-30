@@ -62,26 +62,27 @@ class ModelCheckpoint_new(Callback):
         filepath = self.filepath.replace('{epoch:02d}', str(epoch + 1))
         if self.save_best_only or self.save_best_and_all:
             filepath_best = filepath.replace('.hdf5', '_best.hdf5')
-            current = logs.get(self.monitor)
-            if current is None:
-                warnings.warn('Can save best model only with %s available, '
-                              'skipping.' % (self.monitor), RuntimeWarning)
-            else:
-                if self.monitor_op(current, self.best):
-                    if self.verbose > 0:
-                        print('\nEpoch %05d: %s improved from %0.5f to %0.5f,'
-                              ' saving model to %s'
-                              % (epoch + 1, self.monitor, self.best,
-                                 current, filepath_best))
-                    self.best = current
-                    if self.save_weights_only:
-                        self.model.save_weights(filepath_best, overwrite=True)
-                    else:
-                        self.model.save(filepath_best, overwrite=True)
+            if self.monitor in logs:
+                current = logs.get(self.monitor)
+                if current is None:
+                    warnings.warn('Can save best model only with %s available, '
+                                  'skipping.' % (self.monitor), RuntimeWarning)
                 else:
-                    if self.verbose > 0:
-                        print('\nEpoch %05d: %s did not improve from %0.5f' %
-                              (epoch + 1, self.monitor, self.best))
+                    if self.monitor_op(current, self.best):
+                        if self.verbose > 0:
+                            print('\nEpoch %05d: %s improved from %0.5f to %0.5f,'
+                                  ' saving model to %s'
+                                  % (epoch + 1, self.monitor, self.best,
+                                     current, filepath_best))
+                        self.best = current
+                        if self.save_weights_only:
+                            self.model.save_weights(filepath_best, overwrite=True)
+                        else:
+                            self.model.save(filepath_best, overwrite=True)
+                    else:
+                        if self.verbose > 0:
+                            print('\nEpoch %05d: %s did not improve from %0.5f' %
+                                  (epoch + 1, self.monitor, self.best))
         if self.epochs_since_last_save >= self.period:
             if not self.save_best_only or self.save_best_and_all:
                 self.epochs_since_last_save = 0
