@@ -117,13 +117,13 @@ class Add_Images(tf.keras.callbacks.Callback):
             indexes = tf.unique(tf.where(y > 0)[..., 0])[0]
             index = indexes[tf.shape(indexes)[0] // 2]
             x = tf.expand_dims(x[index,...],axis=0)
+            y = y[index, ...]
             pred = self.model(x, training=False)
             pred = tf.argmax(pred, axis=-1)
-            pred_out = pred[index, ...]
+            pred_out = pred[0,...]
             x = x[...,0]
             x = tf.subtract(x,tf.reduce_min(x))
             x = tf.divide(x, tf.reduce_max(x))
-            y = y[index, ...]
             x, y, pred_out = self.return_proper_size(x), self.return_proper_size(y), self.return_proper_size(pred_out)
             output_x.append(x)
             output_y.append(y)
