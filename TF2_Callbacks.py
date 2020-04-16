@@ -113,13 +113,14 @@ class Add_Images(tf.keras.callbacks.Callback):
         output_pred = []
         for i in range(self.number_of_images):
             x, y = next(self.validation_data)
-            pred = self.model(x, training=False)
             y = tf.squeeze(y)
-            pred = tf.argmax(pred, axis=-1)
             indexes = tf.unique(tf.where(y > 0)[..., 0])[0]
             index = indexes[tf.shape(indexes)[0] // 2]
+            x = tf.expand_dims(x[index,...],axis=0)
+            pred = self.model(x, training=False)
+            pred = tf.argmax(pred, axis=-1)
             pred_out = pred[index, ...]
-            x = x[index, ..., 0]
+            x = x[...,0]
             x = tf.subtract(x,tf.reduce_min(x))
             x = tf.divide(x, tf.reduce_max(x))
             y = y[index, ...]
