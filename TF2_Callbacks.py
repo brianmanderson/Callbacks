@@ -88,6 +88,11 @@ class Add_Images(tf.keras.callbacks.Callback):
             val = tf.expand_dims(val, axis=-1)
         return val
 
+    def scale_0_1(self, val):
+        val = tf.subtract(val, tf.reduce_min(val))
+        val = tf.divide(val, tf.reduce_max(val))
+        return val
+
     def on_epoch_end_test(self, epoch, logs=None):
         data_handler = data_adapter.DataHandler(
             x=self.val_x,
@@ -122,17 +127,15 @@ class Add_Images(tf.keras.callbacks.Callback):
             pred = tf.argmax(pred, axis=-1)
             pred_out = pred[0,...]
             x = x[...,0]
-            x = tf.subtract(x,tf.reduce_min(x))
-            x = tf.divide(x, tf.reduce_max(x))
             x, y, pred_out = self.return_proper_size(x), self.return_proper_size(y), self.return_proper_size(pred_out)
             output_x.append(x)
             output_y.append(y)
             output_pred.append(pred_out)
         x, y, pred_out = tf.concat(output_x, axis=2), tf.concat(output_y, axis=2), tf.concat(output_pred, axis=2)
         with self.file_writer.as_default():
-            tf.summary.image('Image', tf.cast(x, 'float32'), step=epoch)
-            tf.summary.image('Truth', tf.cast(y, 'float32'), step=epoch)
-            tf.summary.image('Pred', tf.cast(pred_out, 'float32'), step=epoch)
+            tf.summary.image('Image', tf.cast(self.scale_0_1(x), 'float32'), step=epoch)
+            tf.summary.image('Truth', tf.cast(self.scale_0_1(x), 'float32'), step=epoch)
+            tf.summary.image('Pred', tf.cast(self.scale_0_1(x), 'float32'), step=epoch)
 
 
 if __name__ == '__main__':
