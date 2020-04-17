@@ -128,7 +128,8 @@ class Add_Images(tf.keras.callbacks.Callback):
             pred_out = pred[0,...]
             x = x[...,0]
             x, y, pred_out = self.return_proper_size(x), self.return_proper_size(y), self.return_proper_size(pred_out)
-            x, y, pred_out = self.scale_0_1(x), self.scale_0_1(y), self.scale_0_1((pred_out))
+            x, y, pred_out = tf.cast(x, 'float32'), tf.cast(y, 'float32'), tf.cast(pred_out, 'float32')
+            x, y, pred_out = self.scale_0_1(x), self.scale_0_1(y), self.scale_0_1(pred_out)
             output_x.append(x)
             output_y.append(y)
             output_pred.append(pred_out)
