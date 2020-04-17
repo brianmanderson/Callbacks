@@ -3,6 +3,7 @@ __author__ = 'Brian M Anderson'
 # Created on 4/15/2020
 import tensorflow as tf
 import os
+from .Plot_And_Scroll_Images.Plot_Scroll_Images import plot_scroll_Image
 from tensorflow.python.distribute import values as ds_values
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.keras.distribute import distributed_training_utils as dist_utils
