@@ -2,15 +2,17 @@ __author__ = 'Brian M Anderson'
 
 # Created on 4/15/2020
 import tensorflow as tf
+from tensorflow.keras.callbacks import Callback
 import os
 from .Plot_And_Scroll_Images.Plot_Scroll_Images import plot_scroll_Image
 
 
-class Add_Images(tf.keras.callbacks.Callback):
-    def __init__(self, validation_data, log_dir, number_of_images=3):
-        super(Add_Images, self).__init__()
+class Add_Images_and_LR(Callback):
+    def __init__(self, log_dir, add_images=True, validation_data=None, number_of_images=3):
+        super(Add_Images_and_LR, self).__init__()
+        assert add_images and validation_data is not None, 'Need to provide validation data if you want images!'
+        self.add_images = add_images
         self.validation_data = iter(validation_data)
-        # self.val_x, self.val_y, self.val_sample_weight = (data_adapter.unpack_x_y_sample_weight(validation_data))
         self.number_of_images = number_of_images
         self.file_writer = tf.summary.create_file_writer(os.path.join(log_dir, 'val_images'))
 
@@ -26,7 +28,7 @@ class Add_Images(tf.keras.callbacks.Callback):
         val = tf.divide(val, tf.reduce_max(val))
         return val
 
-    def on_epoch_end(self, epoch, logs=None):
+    def write_images(self, epoch):
         output_x = []
         output_y = []
         output_pred = []
@@ -48,10 +50,19 @@ class Add_Images(tf.keras.callbacks.Callback):
             output_y.append(y)
             output_pred.append(pred_out)
         x, y, pred_out = tf.concat(output_x, axis=2), tf.concat(output_y, axis=2), tf.concat(output_pred, axis=2)
-        with self.file_writer.as_default():
-            tf.summary.image('Image', tf.cast(x, 'float32'), step=epoch)
-            tf.summary.image('Truth', tf.cast(y, 'float32'), step=epoch)
-            tf.summary.image('Pred', tf.cast(pred_out, 'float32'), step=epoch)
+        return x, y, pred_out
+
+    def on_epoch_end(self, epoch, logs=None):
+        if self.add_images:
+            x, y, pred_out = self.write_images(epoch=epoch)
+            with self.file_writer.as_default():
+                tf.summary.image('Image', tf.cast(x, 'float32'), step=epoch)
+                tf.summary.image('Truth', tf.cast(y, 'float32'), step=epoch)
+                tf.summary.image('Pred', tf.cast(pred_out, 'float32'), step=epoch)
+                tf.summary.scalar('Learning_Rate',tf.keras.backend.get_value(self.model.optimizer.lr), step=epoch)
+        else:
+            with self.file_writer.as_default():
+                tf.summary.scalar('Learning_Rate',tf.keras.backend.get_value(self.model.optimizer.lr), step=epoch)
 
 
 if __name__ == '__main__':
