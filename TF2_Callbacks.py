@@ -34,6 +34,7 @@ class Add_Images_and_LR(Callback):
         output_pred = []
         for i in range(self.number_of_images):
             x, y = next(self.validation_data)
+            y = y[0]
             y = tf.squeeze(y)
             indexes = tf.unique(tf.where(y > 0)[..., 0])[0]
             index = indexes[tf.shape(indexes)[0] // 2]
