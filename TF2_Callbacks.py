@@ -113,8 +113,8 @@ class MeanDSC(tf.keras.metrics.MeanIoU):
 
         iou = tf.math.divide_no_nan(true_positives, denominator)[1:]
 
-        jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou, name='mean_iou'), num_valid_entries)
-        return tf.math.divide_no_nan(tf.multiply(2,jaccard),tf.add(1,jaccard),name='mean_dsc')
+        jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou), num_valid_entries)
+        return tf.math.divide_no_nan(tf.multiply(tf.cast(2,'float32'),jaccard),tf.add(tf.cast(1,'float32'),jaccard),name='mean_dsc')
 
 
 class MeanJaccard(tf.keras.metrics.MeanIoU):
@@ -142,7 +142,7 @@ class MeanJaccard(tf.keras.metrics.MeanIoU):
 
         iou = tf.math.divide_no_nan(true_positives, denominator)[1:]
 
-        jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou, name='mean_iou'), num_valid_entries)
+        jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou), num_valid_entries, name='mean_jaccard')
         return jaccard
 
 
@@ -209,8 +209,8 @@ class SparseCategoricalMeanDSC(Base_To_Sparse):
 
         iou = tf.math.divide_no_nan(true_positives, denominator)[1:]
 
-        jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou, name='mean_iou'), num_valid_entries)
-        return tf.math.divide_no_nan(tf.multiply(2,jaccard),tf.add(1,jaccard),name='mean_dsc')
+        jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou), num_valid_entries)
+        return tf.math.divide_no_nan(tf.multiply(tf.cast(2,'float32'),jaccard),tf.add(tf.cast(1,'float32'),jaccard),name='mean_dsc')
 
 
 class SparseCategoricalMeanJaccard(Base_To_Sparse):
@@ -238,7 +238,7 @@ class SparseCategoricalMeanJaccard(Base_To_Sparse):
 
         iou = tf.math.divide_no_nan(true_positives, denominator)[1:]
 
-        jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou, name='mean_iou'), num_valid_entries)
+        jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou), num_valid_entries, name='mean_jaccard')
         return jaccard
 
 
