@@ -180,7 +180,7 @@ class Base_To_Sparse(tf.keras.metrics.MeanIoU):
             y_pred,
             self.num_classes,
             weights=sample_weight,
-            dtype='float')
+            dtype='float64')
         return self.total_cm.assign_add(current_cm)
 
 
