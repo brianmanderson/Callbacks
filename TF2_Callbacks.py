@@ -5,6 +5,7 @@ from tensorflow.keras.callbacks import Callback
 import os
 from .Plot_And_Scroll_Images.Plot_Scroll_Images import plot_scroll_Image
 from tensorflow.python.ops import array_ops
+from tensorflow.python.ops import confusion_matrix
 
 
 class Add_Images_and_LR(Callback):
@@ -174,7 +175,7 @@ class Base_To_Sparse(tf.keras.metrics.MeanIoU):
             sample_weight = tf.reshape(sample_weight, [-1])
 
         # Accumulate the prediction to current confusion matrix.
-        current_cm = tf.math.confusion_matrix.confusion_matrix(
+        current_cm = confusion_matrix.confusion_matrix(
             y_true,
             y_pred,
             self.num_classes,
