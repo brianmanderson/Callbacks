@@ -4,10 +4,7 @@ import tensorflow as tf
 from tensorflow.keras.callbacks import Callback
 import os
 from .Plot_And_Scroll_Images.Plot_Scroll_Images import plot_scroll_Image
-from tensorflow.python.ops import confusion_matrix
-from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import math_ops
 
 
 class Add_Images_and_LR(Callback):
@@ -96,11 +93,11 @@ class MeanDSC(tf.keras.metrics.MeanIoU):
     '''
     def result(self):
         """Compute the mean intersection-over-union via the confusion matrix."""
-        sum_over_row = math_ops.cast(
-            math_ops.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
-        sum_over_col = math_ops.cast(
-            math_ops.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
-        true_positives = math_ops.cast(
+        sum_over_row = tf.cast(
+            tf.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
+        sum_over_col = tf.cast(
+            tf.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
+        true_positives = tf.cast(
             array_ops.diag_part(self.total_cm), dtype=self._dtype)
 
         # sum_over_row + sum_over_col =
@@ -110,13 +107,13 @@ class MeanDSC(tf.keras.metrics.MeanIoU):
         # The mean is only computed over classes that appear in the
         # label or prediction tensor. If the denominator is 0, we need to
         # ignore the class.
-        num_valid_entries = math_ops.reduce_sum(
-            math_ops.cast(math_ops.not_equal(denominator, 0), dtype=self._dtype))-1 # pitch out background
+        num_valid_entries = tf.reduce_sum(
+            tf.cast(tf.not_equal(denominator, 0), dtype=self._dtype))-1 # pitch out background
 
-        iou = math_ops.div_no_nan(true_positives, denominator)[1:]
+        iou = tf.math.divide_no_nan(true_positives, denominator)[1:]
 
-        jaccard = math_ops.div_no_nan(math_ops.reduce_sum(iou, name='mean_iou'), num_valid_entries)
-        return math_ops.div_no_nan(math_ops.multiply(2,jaccard),math_ops.add(1,jaccard),name='mean_dsc')
+        jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou, name='mean_iou'), num_valid_entries)
+        return tf.math.divide_no_nan(tf.multiply(2,jaccard),tf.add(1,jaccard),name='mean_dsc')
 
 
 class MeanJaccard(tf.keras.metrics.MeanIoU):
@@ -125,11 +122,11 @@ class MeanJaccard(tf.keras.metrics.MeanIoU):
     '''
     def result(self):
         """Compute the mean intersection-over-union via the confusion matrix."""
-        sum_over_row = math_ops.cast(
-            math_ops.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
-        sum_over_col = math_ops.cast(
-            math_ops.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
-        true_positives = math_ops.cast(
+        sum_over_row = tf.cast(
+            tf.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
+        sum_over_col = tf.cast(
+            tf.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
+        true_positives = tf.cast(
             array_ops.diag_part(self.total_cm), dtype=self._dtype)
 
         # sum_over_row + sum_over_col =
@@ -139,12 +136,12 @@ class MeanJaccard(tf.keras.metrics.MeanIoU):
         # The mean is only computed over classes that appear in the
         # label or prediction tensor. If the denominator is 0, we need to
         # ignore the class.
-        num_valid_entries = math_ops.reduce_sum(
-            math_ops.cast(math_ops.not_equal(denominator, 0), dtype=self._dtype))-1 # pitch out background
+        num_valid_entries = tf.reduce_sum(
+            tf.cast(tf.not_equal(denominator, 0), dtype=self._dtype))-1 # pitch out background
 
-        iou = math_ops.div_no_nan(true_positives, denominator)[1:]
+        iou = tf.math.divide_no_nan(true_positives, denominator)[1:]
 
-        jaccard = math_ops.div_no_nan(math_ops.reduce_sum(iou, name='mean_jaccard'), num_valid_entries)
+        jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou, name='mean_iou'), num_valid_entries)
         return jaccard
 
 
@@ -163,26 +160,26 @@ class Base_To_Sparse(tf.keras.metrics.MeanIoU):
           Update op.
         """
 
-        y_true = math_ops.cast(y_true, self._dtype)
-        y_pred = math_ops.argmax(y_pred, axis=-1)
-        y_pred = math_ops.cast(y_pred, self._dtype)
+        y_true = tf.cast(y_true, self._dtype)
+        y_pred = tf.argmax(y_pred, axis=-1)
+        y_pred = tf.cast(y_pred, self._dtype)
         # Flatten the input if its rank > 1.
         if y_pred.shape.ndims > 1:
-            y_pred = array_ops.reshape(y_pred, [-1])
+            y_pred = tf.reshape(y_pred, [-1])
 
         if y_true.shape.ndims > 1:
-            y_true = array_ops.reshape(y_true, [-1])
+            y_true = tf.reshape(y_true, [-1])
 
         if sample_weight is not None and sample_weight.shape.ndims > 1:
-            sample_weight = array_ops.reshape(sample_weight, [-1])
+            sample_weight = tf.reshape(sample_weight, [-1])
 
         # Accumulate the prediction to current confusion matrix.
-        current_cm = confusion_matrix.confusion_matrix(
+        current_cm = tf.math.confusion_matrix.confusion_matrix(
             y_true,
             y_pred,
             self.num_classes,
             weights=sample_weight,
-            dtype=dtypes.float64)
+            dtype='float')
         return self.total_cm.assign_add(current_cm)
 
 
@@ -192,11 +189,11 @@ class SparseCategoricalMeanDSC(Base_To_Sparse):
     '''
     def result(self):
         """Compute the mean intersection-over-union via the confusion matrix."""
-        sum_over_row = math_ops.cast(
-            math_ops.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
-        sum_over_col = math_ops.cast(
-            math_ops.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
-        true_positives = math_ops.cast(
+        sum_over_row = tf.cast(
+            tf.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
+        sum_over_col = tf.cast(
+            tf.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
+        true_positives = tf.cast(
             array_ops.diag_part(self.total_cm), dtype=self._dtype)
 
         # sum_over_row + sum_over_col =
@@ -206,13 +203,13 @@ class SparseCategoricalMeanDSC(Base_To_Sparse):
         # The mean is only computed over classes that appear in the
         # label or prediction tensor. If the denominator is 0, we need to
         # ignore the class.
-        num_valid_entries = math_ops.reduce_sum(
-            math_ops.cast(math_ops.not_equal(denominator, 0), dtype=self._dtype))-1 # pitch out background
+        num_valid_entries = tf.reduce_sum(
+            tf.cast(tf.not_equal(denominator, 0), dtype=self._dtype))-1 # pitch out background
 
-        iou = math_ops.div_no_nan(true_positives, denominator)[1:]
+        iou = tf.math.divide_no_nan(true_positives, denominator)[1:]
 
-        jaccard = math_ops.div_no_nan(math_ops.reduce_sum(iou, name='mean_iou'), num_valid_entries)
-        return math_ops.div_no_nan(math_ops.multiply(2,jaccard),math_ops.add(1,jaccard),name='mean_dsc')
+        jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou, name='mean_iou'), num_valid_entries)
+        return tf.math.divide_no_nan(tf.multiply(2,jaccard),tf.add(1,jaccard),name='mean_dsc')
 
 
 class SparseCategoricalMeanJaccard(Base_To_Sparse):
@@ -221,11 +218,11 @@ class SparseCategoricalMeanJaccard(Base_To_Sparse):
     '''
     def result(self):
         """Compute the mean intersection-over-union via the confusion matrix."""
-        sum_over_row = math_ops.cast(
-            math_ops.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
-        sum_over_col = math_ops.cast(
-            math_ops.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
-        true_positives = math_ops.cast(
+        sum_over_row = tf.cast(
+            tf.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
+        sum_over_col = tf.cast(
+            tf.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
+        true_positives = tf.cast(
             array_ops.diag_part(self.total_cm), dtype=self._dtype)
 
         # sum_over_row + sum_over_col =
@@ -235,12 +232,12 @@ class SparseCategoricalMeanJaccard(Base_To_Sparse):
         # The mean is only computed over classes that appear in the
         # label or prediction tensor. If the denominator is 0, we need to
         # ignore the class.
-        num_valid_entries = math_ops.reduce_sum(
-            math_ops.cast(math_ops.not_equal(denominator, 0), dtype=self._dtype))-1 # pitch out background
+        num_valid_entries = tf.reduce_sum(
+            tf.cast(tf.not_equal(denominator, 0), dtype=self._dtype))-1 # pitch out background
 
-        iou = math_ops.div_no_nan(true_positives, denominator)[1:]
+        iou = tf.math.divide_no_nan(true_positives, denominator)[1:]
 
-        jaccard = math_ops.div_no_nan(math_ops.reduce_sum(iou, name='mean_jaccard'), num_valid_entries)
+        jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou, name='mean_iou'), num_valid_entries)
         return jaccard
 
 
