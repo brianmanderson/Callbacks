@@ -4,6 +4,10 @@ import tensorflow as tf
 from tensorflow.keras.callbacks import Callback
 import os
 from .Plot_And_Scroll_Images.Plot_Scroll_Images import plot_scroll_Image
+from tensorflow.python.ops import confusion_matrix
+from tensorflow.python.framework import dtypes
+from tensorflow.python.ops import array_ops
+from tensorflow.python.ops import math_ops
 
 
 class Add_Images_and_LR(Callback):
@@ -11,9 +15,25 @@ class Add_Images_and_LR(Callback):
         super(Add_Images_and_LR, self).__init__()
         assert add_images and validation_data is not None, 'Need to provide validation data if you want images!'
         self.add_images = add_images
-        self.validation_data = iter(validation_data)
         self.number_of_images = number_of_images
         self.file_writer = tf.summary.create_file_writer(os.path.join(log_dir, 'val_images'))
+        self.create_image_set(iter(validation_data))
+        del validation_data
+
+    def create_image_set(self, validation_data):
+        self.image_dict = {}
+        for i in range(self.number_of_images):
+            print('Preparing out image {}'.format(i))
+            x, y_base = next(validation_data)
+            y = tf.squeeze(y_base[0])
+            indexes = tf.unique(tf.where(y > 0)[..., 0])[0]
+            index = indexes[tf.shape(indexes)[0] // 2]
+            y_out = []
+            for val in range(len(y_base)):
+                y_out.append(y_base[val][index,...])
+            x = x[0]
+            x = tf.expand_dims(x[index, ...], axis=0)
+            self.image_dict[i] = [x, y_out]
 
     def return_proper_size(self, val):
         if tf.shape(val)[0] != 1:
@@ -32,14 +52,9 @@ class Add_Images_and_LR(Callback):
         output_y = []
         output_pred = []
         print('Writing out images')
-        for i in range(self.number_of_images):
+        for i in self.image_dict:
             print('Writing out image {}'.format(i))
-            x, y_base = next(self.validation_data)
-            y = tf.squeeze(y_base[0])
-            indexes = tf.unique(tf.where(y > 0)[..., 0])[0]
-            index = indexes[tf.shape(indexes)[0] // 2]
-            x = x[0]
-            x = tf.expand_dims(x[index, ...], axis=0)
+            x, y_base = self.image_dict[i]
             pred_base = self.model(x, training=False)
             x = tf.squeeze(x)
             if len(x.shape) > 2:
@@ -48,7 +63,7 @@ class Add_Images_and_LR(Callback):
             temp_y = []
             temp_pred = []
             for val in range(len(y_base)):
-                y = tf.squeeze(y_base[val][index,...])
+                y = tf.squeeze(y_base[val])
                 pred = pred_base[val]
                 pred = tf.squeeze(tf.argmax(pred, axis=-1))
                 pred = self.scale_0_1(tf.cast(self.return_proper_size(pred),'float32'))
@@ -73,6 +88,160 @@ class Add_Images_and_LR(Callback):
         else:
             with self.file_writer.as_default():
                 tf.summary.scalar('Learning_Rate',tf.keras.backend.get_value(self.model.optimizer.lr), step=epoch)
+
+
+class MeanDSC(tf.keras.metrics.MeanIoU):
+    '''
+    This varies from the original in that we don't care about the background DSC
+    '''
+    def result(self):
+        """Compute the mean intersection-over-union via the confusion matrix."""
+        sum_over_row = math_ops.cast(
+            math_ops.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
+        sum_over_col = math_ops.cast(
+            math_ops.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
+        true_positives = math_ops.cast(
+            array_ops.diag_part(self.total_cm), dtype=self._dtype)
+
+        # sum_over_row + sum_over_col =
+        #     2 * true_positives + false_positives + false_negatives.
+        denominator = sum_over_row + sum_over_col - true_positives
+
+        # The mean is only computed over classes that appear in the
+        # label or prediction tensor. If the denominator is 0, we need to
+        # ignore the class.
+        num_valid_entries = math_ops.reduce_sum(
+            math_ops.cast(math_ops.not_equal(denominator, 0), dtype=self._dtype))-1 # pitch out background
+
+        iou = math_ops.div_no_nan(true_positives, denominator)[1:]
+
+        jaccard = math_ops.div_no_nan(math_ops.reduce_sum(iou, name='mean_iou'), num_valid_entries)
+        return math_ops.div_no_nan(math_ops.multiply(2,jaccard),math_ops.add(1,jaccard),name='mean_dsc')
+
+
+class MeanJaccard(tf.keras.metrics.MeanIoU):
+    '''
+    This varies from the original in that we don't care about the background DSC
+    '''
+    def result(self):
+        """Compute the mean intersection-over-union via the confusion matrix."""
+        sum_over_row = math_ops.cast(
+            math_ops.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
+        sum_over_col = math_ops.cast(
+            math_ops.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
+        true_positives = math_ops.cast(
+            array_ops.diag_part(self.total_cm), dtype=self._dtype)
+
+        # sum_over_row + sum_over_col =
+        #     2 * true_positives + false_positives + false_negatives.
+        denominator = sum_over_row + sum_over_col - true_positives
+
+        # The mean is only computed over classes that appear in the
+        # label or prediction tensor. If the denominator is 0, we need to
+        # ignore the class.
+        num_valid_entries = math_ops.reduce_sum(
+            math_ops.cast(math_ops.not_equal(denominator, 0), dtype=self._dtype))-1 # pitch out background
+
+        iou = math_ops.div_no_nan(true_positives, denominator)[1:]
+
+        jaccard = math_ops.div_no_nan(math_ops.reduce_sum(iou, name='mean_jaccard'), num_valid_entries)
+        return jaccard
+
+
+class Base_To_Sparse(tf.keras.metrics.MeanIoU):
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        """Accumulates the confusion matrix statistics.
+
+        Args:
+          y_true: The ground truth values.
+          y_pred: The predicted values.
+          sample_weight: Optional weighting of each example. Defaults to 1. Can be a
+            `Tensor` whose rank is either 0, or the same rank as `y_true`, and must
+            be broadcastable to `y_true`.
+
+        Returns:
+          Update op.
+        """
+
+        y_true = math_ops.cast(y_true, self._dtype)
+        y_pred = math_ops.argmax(y_pred, axis=-1)
+        y_pred = math_ops.cast(y_pred, self._dtype)
+        # Flatten the input if its rank > 1.
+        if y_pred.shape.ndims > 1:
+            y_pred = array_ops.reshape(y_pred, [-1])
+
+        if y_true.shape.ndims > 1:
+            y_true = array_ops.reshape(y_true, [-1])
+
+        if sample_weight is not None and sample_weight.shape.ndims > 1:
+            sample_weight = array_ops.reshape(sample_weight, [-1])
+
+        # Accumulate the prediction to current confusion matrix.
+        current_cm = confusion_matrix.confusion_matrix(
+            y_true,
+            y_pred,
+            self.num_classes,
+            weights=sample_weight,
+            dtype=dtypes.float64)
+        return self.total_cm.assign_add(current_cm)
+
+
+class SparseCategoricalMeanDSC(Base_To_Sparse):
+    '''
+    This varies from the original in that we don't care about the background DSC
+    '''
+    def result(self):
+        """Compute the mean intersection-over-union via the confusion matrix."""
+        sum_over_row = math_ops.cast(
+            math_ops.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
+        sum_over_col = math_ops.cast(
+            math_ops.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
+        true_positives = math_ops.cast(
+            array_ops.diag_part(self.total_cm), dtype=self._dtype)
+
+        # sum_over_row + sum_over_col =
+        #     2 * true_positives + false_positives + false_negatives.
+        denominator = sum_over_row + sum_over_col - true_positives
+
+        # The mean is only computed over classes that appear in the
+        # label or prediction tensor. If the denominator is 0, we need to
+        # ignore the class.
+        num_valid_entries = math_ops.reduce_sum(
+            math_ops.cast(math_ops.not_equal(denominator, 0), dtype=self._dtype))-1 # pitch out background
+
+        iou = math_ops.div_no_nan(true_positives, denominator)[1:]
+
+        jaccard = math_ops.div_no_nan(math_ops.reduce_sum(iou, name='mean_iou'), num_valid_entries)
+        return math_ops.div_no_nan(math_ops.multiply(2,jaccard),math_ops.add(1,jaccard),name='mean_dsc')
+
+
+class SparseCategoricalMeanJaccard(Base_To_Sparse):
+    '''
+    This varies from the original in that we don't care about the background DSC
+    '''
+    def result(self):
+        """Compute the mean intersection-over-union via the confusion matrix."""
+        sum_over_row = math_ops.cast(
+            math_ops.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
+        sum_over_col = math_ops.cast(
+            math_ops.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
+        true_positives = math_ops.cast(
+            array_ops.diag_part(self.total_cm), dtype=self._dtype)
+
+        # sum_over_row + sum_over_col =
+        #     2 * true_positives + false_positives + false_negatives.
+        denominator = sum_over_row + sum_over_col - true_positives
+
+        # The mean is only computed over classes that appear in the
+        # label or prediction tensor. If the denominator is 0, we need to
+        # ignore the class.
+        num_valid_entries = math_ops.reduce_sum(
+            math_ops.cast(math_ops.not_equal(denominator, 0), dtype=self._dtype))-1 # pitch out background
+
+        iou = math_ops.div_no_nan(true_positives, denominator)[1:]
+
+        jaccard = math_ops.div_no_nan(math_ops.reduce_sum(iou, name='mean_jaccard'), num_valid_entries)
+        return jaccard
 
 
 if __name__ == '__main__':
