@@ -16,8 +16,8 @@ class Add_Images_and_LR(Callback):
         self.add_images = add_images
         self.number_of_images = number_of_images
         self.file_writer = tf.summary.create_file_writer(os.path.join(log_dir, 'val_images'))
-        self.create_image_set(iter(validation_data))
-        del validation_data
+        if add_images:
+            self.create_image_set(iter(validation_data))
 
     def create_image_set(self, validation_data):
         self.image_dict = {}
