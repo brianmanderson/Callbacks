@@ -11,7 +11,8 @@ from tensorflow.python.ops import confusion_matrix
 class Add_Images_and_LR(Callback):
     def __init__(self, log_dir, add_images=True, validation_data=None, number_of_images=3):
         super(Add_Images_and_LR, self).__init__()
-        assert add_images and validation_data is not None, 'Need to provide validation data if you want images!'
+        if add_images and validation_data is None:
+            AssertionError('Need to provide validation data if you want images!')
         self.add_images = add_images
         self.number_of_images = number_of_images
         self.file_writer = tf.summary.create_file_writer(os.path.join(log_dir, 'val_images'))
