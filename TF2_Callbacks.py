@@ -96,8 +96,8 @@ class Add_Images_and_LR(Callback):
             if x.shape[-1] == 3:
                 x = x[..., -1]
             if self.threshold_x:
-                x[x > 5] = 5
-                x[x < 5] = -5
+                x = tf.where(x > 5, 5, x)
+                x = tf.where(x < -5, -5, x)
             temp_y = []
             temp_pred = []
             x_write = self.scale_0_1(tf.cast(self.return_proper_size(x), 'float32'))
