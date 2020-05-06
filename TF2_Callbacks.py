@@ -9,9 +9,11 @@ from tensorflow.python.ops import confusion_matrix
 
 
 class Add_Images_and_LR(Callback):
-    def __init__(self, log_dir, add_images=True, validation_data=None, number_of_images=3, image_frequency=1):
+    def __init__(self, log_dir, add_images=True, validation_data=None, number_of_images=3, image_frequency=1,
+                 threshold_x=False):
         super(Add_Images_and_LR, self).__init__()
         self.image_frequency = image_frequency
+        self.threshold_x = threshold_x
         if add_images and validation_data is None:
             AssertionError('Need to provide validation data if you want images!')
         self.add_images = add_images
@@ -93,6 +95,9 @@ class Add_Images_and_LR(Callback):
             x = tf.squeeze(x)
             if x.shape[-1] == 3:
                 x = x[..., -1]
+            if self.threshold_x:
+                x[x > 5] = 5
+                x[x < 5] = -5
             temp_y = []
             temp_pred = []
             x_write = self.scale_0_1(tf.cast(self.return_proper_size(x), 'float32'))
