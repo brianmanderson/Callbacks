@@ -15,26 +15,22 @@ class Add_Images_and_LR(Callback):
             AssertionError('Need to provide validation data if you want images!')
         self.add_images = add_images
         self.number_of_images = number_of_images
+        self.validation_data = iter(validation_data)
         self.file_writer = tf.summary.create_file_writer(os.path.join(log_dir, 'val_images'))
-        if add_images:
-            self.create_image_set(iter(validation_data))
+        # if add_images:
+        #     self.create_image_set(iter(validation_data))
 
     def create_image_set(self, validation_data):
         self.image_dict = {}
         for i in range(self.number_of_images):
             print('Preparing out image {}'.format(i))
-            x, y_base = next(validation_data)
-            y = tf.squeeze(y_base[0])
-            indexes = tf.unique(tf.where(y > 0)[..., 0])[0]
-            index = indexes[tf.shape(indexes)[0] // 2]
-            y_out = []
-            for val in range(len(y_base)):
-                y_out.append(y_base[val][index,...])
-            x = x[0]
-            x = tf.expand_dims(x[index, ...], axis=0)
-            self.image_dict[i] = [x, y_out]
+            x, y = next(validation_data)
+            self.image_dict[i] = [x, y]
 
     def return_proper_size(self, val):
+        val = tf.squeeze(val)
+        if len(val.shape) > 2:
+            val = val[0]
         if tf.shape(val)[0] != 1:
             val = tf.expand_dims(val, axis=0)
         if tf.shape(val)[-1] != 1:
@@ -51,26 +47,77 @@ class Add_Images_and_LR(Callback):
         output_y = []
         output_pred = []
         print('Writing out images')
-        for i in self.image_dict:
+        for i in range(self.number_of_images):
+            x, y_base = next(self.validation_data)
             print('Writing out image {}'.format(i))
-            x, y_base = self.image_dict[i]
+            # x, y_base = self.image_dict[i]
+            y = y_base
+            start_index = None
+            while type(y) is tuple:
+                y = y[0]
+            y = tf.squeeze(y)
+            if y.shape[0] > 32:
+                indexes = tf.unique(tf.where(y > 0)[..., 0])[0]
+                start_index = indexes[tf.shape(indexes)[0] // 2]
+            if start_index is not None:
+                x_pred = []
+                if type(x) is tuple:
+                    for i in x:
+                        expand_0 = i.shape[0] == 1
+                        end_shape = i.shape[-1]
+                        i = tf.squeeze(i)
+                        i = i[tf.maximum(start_index-16,0):tf.minimum(start_index+16,i.shape[0])]
+                        if expand_0:
+                            i = tf.expand_dims(i,axis=0)
+                        if end_shape == 1:
+                            i = tf.expand_dims(i,axis=-1)
+                        x_pred.append(i)
+                    x = x_pred
+                y_pred = []
+                if type(y_base) is tuple:
+                    for i in y_base:
+                        expand_0 = i.shape[0] == 1
+                        end_shape = i.shape[-1]
+                        i = tf.squeeze(i)
+                        i = i[tf.maximum(start_index-16,0):tf.minimum(start_index+16,i.shape[0])]
+                        if expand_0:
+                            i = tf.expand_dims(i,axis=0)
+                        if end_shape == 1:
+                            i = tf.expand_dims(i,axis=-1)
+                        y_pred.append(i)
+                    y_base = y_pred
             pred_base = self.model(x, training=False)
+            while type(x) is tuple:
+                x = x[0]
             x = tf.squeeze(x)
-            if len(x.shape) > 2:
+            if x.shape[-1] == 3:
                 x = x[..., -1]
-            x = self.scale_0_1(tf.cast(self.return_proper_size(x), 'float32'))
             temp_y = []
             temp_pred = []
+            x_write = self.scale_0_1(tf.cast(self.return_proper_size(x), 'float32'))
             for val in range(len(y_base)):
                 y = tf.squeeze(y_base[val])
+                index = None
+                if len(y.shape) > 2:
+                    indexes = tf.unique(tf.where(y > 0)[..., 0])[0]
+                    index = indexes[tf.shape(indexes)[0] // 2]
+                    y = y[index]
                 pred = pred_base[val]
                 pred = tf.squeeze(tf.argmax(pred, axis=-1))
+                x_write = x
+                if index is not None:
+                    pred = pred[index]
+                    x_write = x[index]
+                x_write = self.scale_0_1(tf.cast(self.return_proper_size(x_write), 'float32'))
                 pred = self.scale_0_1(tf.cast(self.return_proper_size(pred),'float32'))
                 temp_pred.append(pred)
                 temp_y.append(self.scale_0_1(tf.cast(self.return_proper_size(y),'float32')))
             pred_out = tf.concat(temp_pred, axis=1)
             y_out = tf.concat(temp_y, axis=1)
-            output_x.append(x)
+            pred_out = tf.image.resize_with_crop_or_pad(pred_out, target_height=512*len(y_base), target_width=512)
+            y_out = tf.image.resize_with_crop_or_pad(y_out, target_height=512*len(y_base), target_width=512)
+            x_write = tf.image.resize_with_crop_or_pad(x_write, target_height=512, target_width=512)
+            output_x.append(x_write)
             output_y.append(y_out)
             output_pred.append(pred_out)
         x, y, pred_out = tf.concat(output_x, axis=2), tf.concat(output_y, axis=2), tf.concat(output_pred, axis=2)
