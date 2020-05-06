@@ -56,7 +56,7 @@ class Add_Images_and_LR(Callback):
             while type(y) is tuple:
                 y = y[0]
             y = tf.squeeze(y)
-            if y.shape[0] > 32:
+            if len(y.shape) > 2 and y.shape[0] > 32:
                 indexes = tf.unique(tf.where(y > 0)[..., 0])[0]
                 start_index = indexes[tf.shape(indexes)[0] // 2]
             if start_index is not None:
@@ -72,7 +72,7 @@ class Add_Images_and_LR(Callback):
                         if end_shape == 1:
                             i = tf.expand_dims(i,axis=-1)
                         x_pred.append(i)
-                    x = x_pred
+                    x = tuple(x_pred)
                 y_pred = []
                 if type(y_base) is tuple:
                     for i in y_base:
@@ -85,7 +85,7 @@ class Add_Images_and_LR(Callback):
                         if end_shape == 1:
                             i = tf.expand_dims(i,axis=-1)
                         y_pred.append(i)
-                    y_base = y_pred
+                    y_base = tuple(y_pred)
             pred_base = self.model(x, training=False)
             while type(x) is tuple:
                 x = x[0]
