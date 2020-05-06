@@ -9,8 +9,9 @@ from tensorflow.python.ops import confusion_matrix
 
 
 class Add_Images_and_LR(Callback):
-    def __init__(self, log_dir, add_images=True, validation_data=None, number_of_images=3):
+    def __init__(self, log_dir, add_images=True, validation_data=None, number_of_images=3, image_frequency=1):
         super(Add_Images_and_LR, self).__init__()
+        self.image_frequency = image_frequency
         if add_images and validation_data is None:
             AssertionError('Need to provide validation data if you want images!')
         self.add_images = add_images
@@ -124,7 +125,7 @@ class Add_Images_and_LR(Callback):
         return x, y, pred_out
 
     def on_epoch_end(self, epoch, logs=None):
-        if self.add_images:
+        if self.add_images and self.image_frequency != 0 and epoch % self.image_frequency == 0:
             x, y, pred_out = self.write_images()
             with self.file_writer.as_default():
                 tf.summary.image('Image', tf.cast(x, 'float32'), step=epoch)
