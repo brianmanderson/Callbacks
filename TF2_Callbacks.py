@@ -46,9 +46,7 @@ class Add_Images_and_LR(Callback):
         return val
 
     def write_images(self):
-        output_x = []
-        output_y = []
-        output_pred = []
+        out_dict = {}
         print('Writing out images')
         for i in range(self.number_of_images):
             x, y_base = next(self.validation_data)
@@ -98,10 +96,9 @@ class Add_Images_and_LR(Callback):
             if self.threshold_x:
                 x[x > 5] = 5
                 x[x < 5] = -5
-            temp_y = []
-            temp_pred = []
-            x_write = self.scale_0_1(tf.cast(self.return_proper_size(x), 'float32'))
             for val in range(len(y_base)):
+                if val not in out_dict:
+                    out_dict[val] = None
                 y = tf.squeeze(y_base[val])
                 index = None
                 if len(y.shape) > 2:
@@ -115,27 +112,27 @@ class Add_Images_and_LR(Callback):
                     pred = pred[index]
                     x_write = x[index]
                 x_write = self.scale_0_1(tf.cast(self.return_proper_size(x_write), 'float32'))
-                pred = self.scale_0_1(tf.cast(self.return_proper_size(pred),'float32'))
-                temp_pred.append(pred)
-                temp_y.append(self.scale_0_1(tf.cast(self.return_proper_size(y),'float32')))
-            pred_out = tf.concat(temp_pred, axis=1)
-            y_out = tf.concat(temp_y, axis=1)
-            pred_out = tf.image.resize_with_crop_or_pad(pred_out, target_height=512*len(y_base), target_width=512)
-            y_out = tf.image.resize_with_crop_or_pad(y_out, target_height=512*len(y_base), target_width=512)
-            x_write = tf.image.resize_with_crop_or_pad(x_write, target_height=512, target_width=512)
-            output_x.append(x_write)
-            output_y.append(y_out)
-            output_pred.append(pred_out)
-        x, y, pred_out = tf.concat(output_x, axis=2), tf.concat(output_y, axis=2), tf.concat(output_pred, axis=2)
-        return x, y, pred_out
+                x_write = tf.image.resize_with_crop_or_pad(x_write, target_height=512, target_width=512)
+                pred_write = self.scale_0_1(tf.cast(self.return_proper_size(pred),'float32'))
+                pred_write = tf.image.resize_with_crop_or_pad(pred_write, target_height=512, target_width=512)
+                y_write = self.scale_0_1(tf.cast(self.return_proper_size(y),'float32'))
+                y_write = tf.image.resize_with_crop_or_pad(y_write, target_height=512, target_width=512)
+                image = tf.concat([x_write, pred_write, y_write], axis=1)
+                if out_dict[val] is None:
+                    out_dict[val] = image
+                else:
+                    out_dict[val] = tf.concat([out_dict[val],image], axis=2)
+        outputs = []
+        for key in out_dict.keys():
+            outputs.append(out_dict[key])
+        return outputs
 
     def on_epoch_end(self, epoch, logs=None):
         if self.add_images and self.image_frequency != 0 and epoch % self.image_frequency == 0:
-            x, y, pred_out = self.write_images()
+            outputs = self.write_images()
             with self.file_writer.as_default():
-                tf.summary.image('Image', tf.cast(x, 'float32'), step=epoch)
-                tf.summary.image('Truth', tf.cast(y, 'float32'), step=epoch)
-                tf.summary.image('Pred', tf.cast(pred_out, 'float32'), step=epoch)
+                for i, output in enumerate(outputs):
+                    tf.summary.image('Image, Pred, Truth {}'.format(i), tf.cast(output, 'float32'), step=epoch)
                 tf.summary.scalar('Learning_Rate',tf.keras.backend.get_value(self.model.optimizer.lr), step=epoch)
         else:
             with self.file_writer.as_default():
