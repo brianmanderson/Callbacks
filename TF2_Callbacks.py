@@ -57,7 +57,7 @@ class Add_Images_and_LR(Callback):
             while type(y) is tuple:
                 y = y[0]
             y = tf.squeeze(y)
-            if len(y.shape) > 2 and y.shape[0] > 32:
+            if len(y.shape) > 2 and y.shape[0] > 128:
                 indexes = tf.unique(tf.where(y > 0)[..., 0])[0]
                 start_index = indexes[tf.shape(indexes)[0] // 2]
             if start_index is not None:
