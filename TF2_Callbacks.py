@@ -145,6 +145,18 @@ class MeanDSC(tf.keras.metrics.MeanIoU):
     '''
     This varies from the original in that we don't care about the background DSC
     '''
+    def __init__(self, num_classes, name=None, dtype=None):
+        """Creates a `MeanIoU` instance.
+
+        Args:
+          num_classes: The possible number of labels the prediction task can have.
+            This value must be provided, since a confusion matrix of dimension =
+            [num_classes, num_classes] will be allocated.
+          name: (Optional) string name of the metric instance.
+          dtype: (Optional) data type of the metric result.
+        """
+        super(MeanDSC, self).__init__(num_classes=num_classes, name=name, dtype=dtype)
+
     def result(self):
         """Compute the mean intersection-over-union via the confusion matrix."""
         sum_over_row = tf.cast(
@@ -169,11 +181,28 @@ class MeanDSC(tf.keras.metrics.MeanIoU):
         jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou), num_valid_entries)
         return tf.math.divide_no_nan(tf.multiply(tf.cast(2,'float32'),jaccard),tf.add(tf.cast(1,'float32'),jaccard),name='mean_dsc')
 
+    def get_config(self):
+        config = {'num_classes': self.num_classes}
+        base_config = super(MeanDSC, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 class MeanJaccard(tf.keras.metrics.MeanIoU):
     '''
     This varies from the original in that we don't care about the background DSC
     '''
+    def __init__(self, num_classes, name=None, dtype=None):
+        """Creates a `MeanIoU` instance.
+
+        Args:
+          num_classes: The possible number of labels the prediction task can have.
+            This value must be provided, since a confusion matrix of dimension =
+            [num_classes, num_classes] will be allocated.
+          name: (Optional) string name of the metric instance.
+          dtype: (Optional) data type of the metric result.
+        """
+        super(MeanJaccard, self).__init__(num_classes=num_classes, name=name, dtype=dtype)
+
     def result(self):
         """Compute the mean intersection-over-union via the confusion matrix."""
         sum_over_row = tf.cast(
@@ -198,8 +227,25 @@ class MeanJaccard(tf.keras.metrics.MeanIoU):
         jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou), num_valid_entries, name='mean_jaccard')
         return jaccard
 
+    def get_config(self):
+        config = {'num_classes': self.num_classes}
+        base_config = super(MeanJaccard, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 class Base_To_Sparse(tf.keras.metrics.MeanIoU):
+    def __init__(self, num_classes, name=None, dtype=None):
+        """Creates a `MeanIoU` instance.
+
+        Args:
+          num_classes: The possible number of labels the prediction task can have.
+            This value must be provided, since a confusion matrix of dimension =
+            [num_classes, num_classes] will be allocated.
+          name: (Optional) string name of the metric instance.
+          dtype: (Optional) data type of the metric result.
+        """
+        super(Base_To_Sparse, self).__init__(num_classes=num_classes, name=name, dtype=dtype)
+
     def update_state(self, y_true, y_pred, sample_weight=None):
         """Accumulates the confusion matrix statistics.
 
@@ -241,6 +287,18 @@ class SparseCategoricalMeanDSC(Base_To_Sparse):
     '''
     This varies from the original in that we don't care about the background DSC
     '''
+    def __init__(self, num_classes, name=None, dtype=None):
+        """Creates a `MeanIoU` instance.
+
+        Args:
+          num_classes: The possible number of labels the prediction task can have.
+            This value must be provided, since a confusion matrix of dimension =
+            [num_classes, num_classes] will be allocated.
+          name: (Optional) string name of the metric instance.
+          dtype: (Optional) data type of the metric result.
+        """
+        super(SparseCategoricalMeanDSC, self).__init__(num_classes=num_classes, name=name, dtype=dtype)
+
     def result(self):
         """Compute the mean intersection-over-union via the confusion matrix."""
         sum_over_row = tf.cast(
@@ -265,11 +323,28 @@ class SparseCategoricalMeanDSC(Base_To_Sparse):
         jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou), num_valid_entries)
         return tf.math.divide_no_nan(tf.multiply(tf.cast(2,'float32'),jaccard),tf.add(tf.cast(1,'float32'),jaccard),name='mean_dsc')
 
+    def get_config(self):
+        config = {'num_classes': self.num_classes}
+        base_config = super(SparseCategoricalMeanDSC, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 class SparseCategoricalMeanJaccard(Base_To_Sparse):
     '''
     This varies from the original in that we don't care about the background DSC
     '''
+    def __init__(self, num_classes, name=None, dtype=None):
+        """Creates a `MeanIoU` instance.
+
+        Args:
+          num_classes: The possible number of labels the prediction task can have.
+            This value must be provided, since a confusion matrix of dimension =
+            [num_classes, num_classes] will be allocated.
+          name: (Optional) string name of the metric instance.
+          dtype: (Optional) data type of the metric result.
+        """
+        super(SparseCategoricalMeanJaccard, self).__init__(num_classes=num_classes, name=name, dtype=dtype)
+
     def result(self):
         """Compute the mean intersection-over-union via the confusion matrix."""
         sum_over_row = tf.cast(
@@ -293,6 +368,11 @@ class SparseCategoricalMeanJaccard(Base_To_Sparse):
 
         jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou), num_valid_entries, name='mean_jaccard')
         return jaccard
+
+    def get_config(self):
+        config = {'num_classes': self.num_classes}
+        base_config = super(SparseCategoricalMeanJaccard, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 if __name__ == '__main__':
