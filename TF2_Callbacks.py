@@ -292,7 +292,7 @@ class SparseCategoricalMeanDSC(Metric):
     This varies from the original in that we don't care about the background DSC
     '''
 
-    def __init__(self, num_classes, name=None, dtype=None):
+    def __init__(self, num_classes, name='sparse_categorical_mean_dsc', dtype=None):
         """Creates a `MeanIoU` instance.
 
         Args:
