@@ -5,6 +5,8 @@ from tensorflow.keras.callbacks import Callback
 import os
 import numpy as np
 from tensorflow.keras.metrics import Metric
+from tensorflow.python.framework import dtypes
+from tensorflow.python.ops import init_ops
 from .Plot_And_Scroll_Images.Plot_Scroll_Images import plot_scroll_Image
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import confusion_matrix
