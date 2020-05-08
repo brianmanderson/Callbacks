@@ -103,7 +103,10 @@ class Add_Images_and_LR(Callback):
                     indexes = tf.unique(tf.where(y > 0)[..., 0])[0]
                     index = indexes[tf.shape(indexes)[0] // 2]
                     y = y[index]
-                pred = pred_base[val]
+                if type(pred_base) is tuple:
+                    pred = pred_base[val]
+                else:
+                    pred = pred_base
                 pred = tf.squeeze(tf.argmax(pred, axis=-1))
                 x_write = x
                 if index is not None:
