@@ -112,6 +112,8 @@ class Add_Images_and_LR(Callback):
                 else:
                     pred = pred_base
                 pred = tf.squeeze(tf.argmax(pred, axis=-1))
+                if len(y.shape) > 2:
+                    y = tf.argmax(y, axis=-1)
                 x_write = x
                 if index is not None:
                     pred = pred[index]
