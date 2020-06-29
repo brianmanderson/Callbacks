@@ -14,8 +14,10 @@ from tensorflow.python.ops import confusion_matrix
 
 class Add_Images_and_LR(Callback):
     def __init__(self, log_dir, add_images=True, validation_data=None, number_of_images=3, image_frequency=1,
-                 threshold_x=False):
+                 threshold_x=False, target_image_height=512, target_image_width=512):
         super(Add_Images_and_LR, self).__init__()
+        self.target_image_height = target_image_height
+        self.target_image_width = target_image_width
         self.image_frequency = image_frequency
         self.threshold_x = threshold_x
         if add_images and validation_data is None:
@@ -119,11 +121,14 @@ class Add_Images_and_LR(Callback):
                     pred = pred[index]
                     x_write = x[index]
                 x_write = self.scale_0_1(tf.cast(self.return_proper_size(x_write), 'float32'))
-                x_write = tf.image.resize_with_crop_or_pad(x_write, target_height=512, target_width=512)
+                x_write = tf.image.resize_with_crop_or_pad(x_write, target_height=self.self.target_image_height,
+                                                           target_width=self.target_image_width)
                 pred_write = self.scale_0_1(tf.cast(self.return_proper_size(pred),'float32'))
-                pred_write = tf.image.resize_with_crop_or_pad(pred_write, target_height=512, target_width=512)
+                pred_write = tf.image.resize_with_crop_or_pad(pred_write, target_height=self.self.target_image_height,
+                                                              target_width=self.target_image_width)
                 y_write = self.scale_0_1(tf.cast(self.return_proper_size(y), 'float32'))
-                y_write = tf.image.resize_with_crop_or_pad(y_write, target_height=512, target_width=512)
+                y_write = tf.image.resize_with_crop_or_pad(y_write, target_height=self.self.target_image_height,
+                                                           target_width=self.target_image_width)
                 image = tf.concat([x_write, y_write, pred_write], axis=1)
                 if val not in out_dict:
                     out_dict[val] = image
