@@ -121,13 +121,13 @@ class Add_Images_and_LR(Callback):
                     pred = pred[index]
                     x_write = x[index]
                 x_write = self.scale_0_1(tf.cast(self.return_proper_size(x_write), 'float32'))
-                x_write = tf.image.resize_with_crop_or_pad(x_write, target_height=self.self.target_image_height,
+                x_write = tf.image.resize_with_crop_or_pad(x_write, target_height=self.target_image_height,
                                                            target_width=self.target_image_width)
                 pred_write = self.scale_0_1(tf.cast(self.return_proper_size(pred),'float32'))
-                pred_write = tf.image.resize_with_crop_or_pad(pred_write, target_height=self.self.target_image_height,
+                pred_write = tf.image.resize_with_crop_or_pad(pred_write, target_height=self.target_image_height,
                                                               target_width=self.target_image_width)
                 y_write = self.scale_0_1(tf.cast(self.return_proper_size(y), 'float32'))
-                y_write = tf.image.resize_with_crop_or_pad(y_write, target_height=self.self.target_image_height,
+                y_write = tf.image.resize_with_crop_or_pad(y_write, target_height=self.target_image_height,
                                                            target_width=self.target_image_width)
                 image = tf.concat([x_write, y_write, pred_write], axis=1)
                 if val not in out_dict:
