@@ -235,6 +235,66 @@ class MeanDSC(tf.keras.metrics.MeanIoU):
         return dict(list(base_config.items()) + list(config.items()))
 
 
+class ReducedMeanDSC(MeanDSC):
+    '''
+    This varies from the original in that we don't care about some classes
+    '''
+    def __init__(self, classes_of_interest=None, name='mean_dsc_reduced', dtype=None):
+        """Creates a `MeanIoU` instance.
+
+        Args:
+          classes_of_interest: List of class indexes that you want to calculate the DSC on, example [0, 1, 2, 4, 6]
+          name: (Optional) string name of the metric instance.
+          dtype: (Optional) data type of the metric result.
+        """
+        assert type(classes_of_interest) is tuple or list, 'Provide a list of classes you want the dice on'
+        assert classes_of_interest[0] == 0, "You'll still want the background, as it goes by argmax"
+        self.classes_of_interest = classes_of_interest
+        num_classes = len(classes_of_interest)
+        super(ReducedMeanDSC, self).__init__(num_classes=num_classes, name=name, dtype=dtype)
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        """Accumulates the confusion matrix statistics.
+
+        Args:
+          y_true: The ground truth values.
+          y_pred: The predicted values.
+          sample_weight: Optional weighting of each example. Defaults to 1. Can be a
+            `Tensor` whose rank is either 0, or the same rank as `y_true`, and must
+            be broadcastable to `y_true`.
+
+        Returns:
+          Update op.
+        """
+        y_true = tf.argmax(tf.stack([y_true[..., i] for i in self.classes_of_interest], axis=-1), axis=-1)
+        y_true = tf.cast(y_true, self._dtype)
+        y_pred = tf.argmax(tf.stack([y_pred[..., i] for i in self.classes_of_interest], axis=-1), axis=-1)
+        y_pred = tf.cast(y_pred, self._dtype)
+        # Flatten the input if its rank > 1.
+        if y_pred.shape.ndims > 1:
+            y_pred = tf.reshape(y_pred, [-1])
+
+        if y_true.shape.ndims > 1:
+            y_true = tf.reshape(y_true, [-1])
+
+        if sample_weight is not None and sample_weight.shape.ndims > 1:
+            sample_weight = tf.reshape(sample_weight, [-1])
+
+        # Accumulate the prediction to current confusion matrix.
+        current_cm = confusion_matrix.confusion_matrix(
+            y_true,
+            y_pred,
+            self.num_classes,
+            weights=sample_weight,
+            dtype='float64')
+        return self.total_cm.assign_add(current_cm)
+
+    def get_config(self):
+        config = {'num_classes': self.num_classes, 'classes_of_interest':self.classes_of_interest}
+        base_config = super(ReducedMeanDSC, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
 class MeanJaccard(tf.keras.metrics.MeanIoU):
     '''
     This varies from the original in that we don't care about the background DSC
