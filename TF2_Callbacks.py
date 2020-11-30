@@ -24,7 +24,9 @@ class Add_Images_and_LR(Callback):
             AssertionError('Need to provide validation data if you want images!')
         self.add_images = add_images
         self.number_of_images = number_of_images
-        self.validation_data = iter(validation_data)
+        self.validation_data = validation_data
+        if validation_data is not None:
+            self.validation_data = iter(validation_data)
         self.file_writer = tf.summary.create_file_writer(os.path.join(log_dir, 'val_images'))
         # if add_images:
         #     self.create_image_set(iter(validation_data))
