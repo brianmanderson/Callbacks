@@ -13,7 +13,7 @@ from tensorflow.python.framework import ops
 from tensorflow.python.ops import variables, array_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.keras.backend import get_value
-from .Plot_And_Scroll_Images.Plot_Scroll_Images import plot_scroll_Image
+from PlotScrollNumpyArrays import plot_scroll_Image
 
 
 class TensorBoardImage(TensorBoard):
