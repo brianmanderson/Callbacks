@@ -469,7 +469,7 @@ class SparseCategoricalMeanDSC(Metric):
         jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou), num_valid_entries)
         return tf.math.divide_no_nan(tf.multiply(tf.cast(2,'float32'),jaccard),tf.add(tf.cast(1,'float32'),jaccard),name='mean_dsc')
 
-    def reset_states(self):
+    def reset_state(self):
         tf.keras.backend.set_value(self.total_cm, np.zeros((self.num_classes, self.num_classes)))
 
     def get_config(self):
@@ -564,7 +564,7 @@ class SparseCategoricalMeanJaccard(Metric):
         jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou), num_valid_entries, name='mean_jaccard')
         return jaccard
 
-    def reset_states(self):
+    def reset_state(self):
         tf.keras.backend.set_value(self.total_cm, np.zeros((self.num_classes, self.num_classes)))
 
     def get_config(self):
