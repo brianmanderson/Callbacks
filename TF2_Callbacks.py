@@ -42,9 +42,9 @@ class Add_Images_and_LR(Callback):
         val = tf.squeeze(val)
         if len(val.shape) > 2:
             val = val[0]
-        if tf.shape(val)[0] != 1:
+        if val.shape[0] != 1:
             val = tf.expand_dims(val, axis=0)
-        if tf.shape(val)[-1] != 1:
+        if val.shape[-1] != 1:
             val = tf.expand_dims(val, axis=-1)
         return val
 
@@ -67,7 +67,7 @@ class Add_Images_and_LR(Callback):
             y = tf.squeeze(y)
             if len(y.shape) > 2 and y.shape[0] > 128:
                 indexes = tf.unique(tf.where(y > 0)[..., 0])[0]
-                start_index = indexes[tf.shape(indexes)[0] // 2]
+                start_index = indexes[indexes.shape[0] // 2]
             if start_index is not None:
                 x_pred = []
                 if type(x) is tuple:
