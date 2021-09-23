@@ -109,7 +109,7 @@ class Add_Images_and_LR(Callback):
                 index = None
                 if len(y.shape) > 2:
                     indexes = tf.unique(tf.where(y > 0)[..., 0])[0]
-                    index = indexes[tf.shape(indexes)[0] // 2]
+                    index = indexes[indexes.shape[0] // 2]
                     y = y[index]
                 if type(pred_base) is tuple:
                     pred = pred_base[val]
