@@ -108,11 +108,11 @@ class Add_Images_and_LR(Callback):
                 y = tf.squeeze(y_base[val])
                 index = None
                 if len(y.shape) > 2:
-                    indexes = tf.unique(tf.where(y > 0)[..., 0])[0]
-                    if len(indexes.shape) > 1:
-                        index = indexes[indexes.shape[0] // 2]
-                    else:
-                        index = 0
+                    y_temp = tf.where(y > 0)[..., 0]
+                    if y_temp.shape.dims[0] == 0:
+                        y_temp = tf.where(y >= 0)[..., 0]
+                    indexes = tf.unique(y_temp)[0]
+                    index = indexes[tf.shape(indexes)[0] // 2]
                     y = y[index]
                 if type(pred_base) is tuple:
                     pred = pred_base[val]
