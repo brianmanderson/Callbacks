@@ -1,4 +1,5 @@
 __author__ = 'Brian M Anderson'
+
 # Created on 4/15/2020
 import tensorflow as tf
 from tensorflow.keras.callbacks import Callback
@@ -78,11 +79,11 @@ class Add_Images_and_LR(Callback):
                         expand_0 = i.shape[0] == 1
                         end_shape = i.shape[-1]
                         i = tf.squeeze(i)
-                        i = i[tf.maximum(start_index-16,0):tf.minimum(start_index+16,i.shape[0])]
+                        i = i[tf.maximum(start_index - 16, 0):tf.minimum(start_index + 16, i.shape[0])]
                         if expand_0:
-                            i = tf.expand_dims(i,axis=0)
+                            i = tf.expand_dims(i, axis=0)
                         if end_shape == 1:
-                            i = tf.expand_dims(i,axis=-1)
+                            i = tf.expand_dims(i, axis=-1)
                         x_pred.append(i)
                     x = tuple(x_pred)
                 y_pred = []
@@ -91,11 +92,11 @@ class Add_Images_and_LR(Callback):
                         expand_0 = i.shape[0] == 1
                         end_shape = i.shape[-1]
                         i = tf.squeeze(i)
-                        i = i[tf.maximum(start_index-16,0):tf.minimum(start_index+16,i.shape[0])]
+                        i = i[tf.maximum(start_index - 16, 0):tf.minimum(start_index + 16, i.shape[0])]
                         if expand_0:
-                            i = tf.expand_dims(i,axis=0)
+                            i = tf.expand_dims(i, axis=0)
                         if end_shape == 1:
-                            i = tf.expand_dims(i,axis=-1)
+                            i = tf.expand_dims(i, axis=-1)
                         y_pred.append(i)
                     y_base = tuple(y_pred)
             pred_base = self.model(x, training=False)
@@ -128,20 +129,20 @@ class Add_Images_and_LR(Callback):
                 if index is not None:
                     pred = pred[index]
                     x_write = x[index]
-                x_write = self.scale_0_1(tf.cast(self.return_proper_size(x_write), 'float32'))*255
+                x_write = self.scale_0_1(tf.cast(self.return_proper_size(x_write), 'float32')) * 255
                 x_write = tf.image.resize_with_crop_or_pad(x_write, target_height=self.target_image_height,
                                                            target_width=self.target_image_width)
-                pred_write = self.scale_0_1(tf.cast(self.return_proper_size(pred),'float32'))*255
+                pred_write = self.scale_0_1(tf.cast(self.return_proper_size(pred), 'float32')) * 255
                 pred_write = tf.image.resize_with_crop_or_pad(pred_write, target_height=self.target_image_height,
                                                               target_width=self.target_image_width)
-                y_write = self.scale_0_1(tf.cast(self.return_proper_size(y), 'float32'))*255
+                y_write = self.scale_0_1(tf.cast(self.return_proper_size(y), 'float32')) * 255
                 y_write = tf.image.resize_with_crop_or_pad(y_write, target_height=self.target_image_height,
                                                            target_width=self.target_image_width)
                 image = tf.concat([x_write, y_write, pred_write], axis=1)
                 if val not in out_dict:
                     out_dict[val] = image
                 else:
-                    out_dict[val] = tf.concat([out_dict[val],image], axis=2)
+                    out_dict[val] = tf.concat([out_dict[val], image], axis=2)
         outputs = []
         for i in out_dict.keys():
             outputs.append(out_dict[i])
@@ -154,10 +155,33 @@ class Add_Images_and_LR(Callback):
             with self.file_writer.as_default():
                 for i, output in enumerate(outputs):
                     tf.summary.image('Image Truth Pred {}'.format(i), tf.cast(output, 'float32'), step=epoch)
-                tf.summary.scalar('Learning_Rate',tf.keras.backend.get_value(self.model.optimizer.lr), step=epoch)
+                tf.summary.scalar('Learning_Rate', tf.keras.backend.get_value(self.model.optimizer.lr), step=epoch)
         else:
             with self.file_writer.as_default():
-                tf.summary.scalar('Learning_Rate',tf.keras.backend.get_value(self.model.optimizer.lr), step=epoch)
+                tf.summary.scalar('Learning_Rate', tf.keras.backend.get_value(self.model.optimizer.lr), step=epoch)
+
+
+class DiceLoss(tf.keras.losses.Loss):
+    def __init__(self, name='dice_loss', image_shape=(32, 512, 512), d_type='float32'):
+        self.image_shape = image_shape
+        super(DiceLoss, self).__init__(name=name)
+        self._dtype = d_type
+
+    def call(self, y_true, y_pred):
+        spatial_axes = tuple(range(1, len(self.image_shape) - 1))
+        # Just take the outcome prediction
+        y_true = y_true[..., 1]
+        y_true = tf.cast(y_true, self._dtype)
+        y_pred = y_pred[..., 1]
+
+        numerator = 2 * tf.reduce_sum(y_true * y_pred, axis=spatial_axes)
+        denominator = tf.reduce_sum(y_true + y_pred, axis=spatial_axes)
+
+        dice_score = numerator / denominator
+        # To handle the numerical stability and prevent division by zero
+        dice_loss = 1 - tf.math.divide_no_nan(dice_score, tf.reduce_sum(dice_score))
+
+        return dice_loss
 
 
 class DiceLoss(tf.keras.losses.Loss):
@@ -188,6 +212,7 @@ class MeanDSC(tf.keras.metrics.MeanIoU):
     '''
     This varies from the original in that we don't care about the background DSC
     '''
+
     def __init__(self, num_classes, name='mean_dsc', dtype=None):
         """Creates a `MeanIoU` instance.
 
@@ -249,12 +274,13 @@ class MeanDSC(tf.keras.metrics.MeanIoU):
         # label or prediction tensor. If the denominator is 0, we need to
         # ignore the class.
         num_valid_entries = tf.reduce_sum(
-            tf.cast(tf.not_equal(denominator, 0), dtype=self._dtype))-1 # pitch out background
+            tf.cast(tf.not_equal(denominator, 0), dtype=self._dtype)) - 1  # pitch out background
 
         iou = tf.math.divide_no_nan(true_positives, denominator)[1:]
 
         jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou), num_valid_entries)
-        return tf.math.divide_no_nan(tf.multiply(tf.cast(2,'float32'),jaccard),tf.add(tf.cast(1,'float32'),jaccard),name='mean_dsc')
+        return tf.math.divide_no_nan(tf.multiply(tf.cast(2, 'float32'), jaccard),
+                                     tf.add(tf.cast(1, 'float32'), jaccard), name='mean_dsc')
 
     def get_config(self):
         config = {'num_classes': self.num_classes}
@@ -266,6 +292,7 @@ class ReducedMeanDSC(MeanDSC):
     '''
     This varies from the original in that we don't care about some classes
     '''
+
     def __init__(self, classes_of_interest=None, name='mean_dsc_reduced', dtype=None):
         """Creates a `MeanIoU` instance.
 
@@ -317,7 +344,7 @@ class ReducedMeanDSC(MeanDSC):
         return self.total_cm.assign_add(current_cm)
 
     def get_config(self):
-        config = {'num_classes': self.num_classes, 'classes_of_interest':self.classes_of_interest}
+        config = {'num_classes': self.num_classes, 'classes_of_interest': self.classes_of_interest}
         base_config = super(ReducedMeanDSC, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -326,6 +353,7 @@ class MeanJaccard(tf.keras.metrics.MeanIoU):
     '''
     This varies from the original in that we don't care about the background DSC
     '''
+
     def __init__(self, num_classes, name='mean_jaccard', dtype=None):
         """Creates a `MeanIoU` instance.
 
@@ -392,7 +420,7 @@ class MeanJaccard(tf.keras.metrics.MeanIoU):
         # label or prediction tensor. If the denominator is 0, we need to
         # ignore the class.
         num_valid_entries = tf.reduce_sum(
-            tf.cast(tf.not_equal(denominator, 0), dtype=self._dtype))-1 # pitch out background
+            tf.cast(tf.not_equal(denominator, 0), dtype=self._dtype)) - 1  # pitch out background
 
         iou = tf.math.divide_no_nan(true_positives, denominator)[1:]
 
@@ -484,12 +512,13 @@ class SparseCategoricalMeanDSC(Metric):
         # label or prediction tensor. If the denominator is 0, we need to
         # ignore the class.
         num_valid_entries = tf.reduce_sum(
-            tf.cast(tf.not_equal(denominator, 0), dtype=self._dtype))-1 # pitch out background
+            tf.cast(tf.not_equal(denominator, 0), dtype=self._dtype)) - 1  # pitch out background
 
         iou = tf.math.divide_no_nan(true_positives, denominator)[1:]
 
         jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou), num_valid_entries)
-        return tf.math.divide_no_nan(tf.multiply(tf.cast(2,'float32'),jaccard),tf.add(tf.cast(1,'float32'),jaccard),name='mean_dsc')
+        return tf.math.divide_no_nan(tf.multiply(tf.cast(2, 'float32'), jaccard),
+                                     tf.add(tf.cast(1, 'float32'), jaccard), name='mean_dsc')
 
     def reset_state(self):
         tf.keras.backend.set_value(self.total_cm, np.zeros((self.num_classes, self.num_classes)))
@@ -579,7 +608,7 @@ class SparseCategoricalMeanJaccard(Metric):
         # label or prediction tensor. If the denominator is 0, we need to
         # ignore the class.
         num_valid_entries = tf.reduce_sum(
-            tf.cast(tf.not_equal(denominator, 0), dtype=self._dtype))-1 # pitch out background
+            tf.cast(tf.not_equal(denominator, 0), dtype=self._dtype)) - 1  # pitch out background
 
         iou = tf.math.divide_no_nan(true_positives, denominator)[1:]
 
