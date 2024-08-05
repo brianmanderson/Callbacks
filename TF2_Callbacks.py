@@ -14,7 +14,7 @@ from tensorflow.python.ops import confusion_matrix
 
 class Add_Images_and_LR(Callback):
     def __init__(self, log_dir, add_images=True, validation_data=None, number_of_images=3, image_frequency=1,
-                 threshold_x=False, target_image_height=512, target_image_width=512):
+                 threshold_x=False, target_image_height=512, target_image_width=512, arg_max=False):
         super(Add_Images_and_LR, self).__init__()
         self.target_image_height = target_image_height
         self.target_image_width = target_image_width
@@ -28,6 +28,7 @@ class Add_Images_and_LR(Callback):
         if validation_data is not None:
             self.validation_data = iter(validation_data)
         self.file_writer = tf.summary.create_file_writer(os.path.join(log_dir, 'val_images'))
+        self.arg_max = arg_max
         # if add_images:
         #     self.create_image_set(iter(validation_data))
 
@@ -58,6 +59,8 @@ class Add_Images_and_LR(Callback):
         print('Writing out images')
         for i in range(self.number_of_images):
             x, y_base = next(self.validation_data)
+            if self.arg_max:
+                y_base = tf.argmax(y_base, axis=-1)
             print('Writing out image {}'.format(i))
             # x, y_base = self.image_dict[i]
             y = y_base
@@ -118,20 +121,20 @@ class Add_Images_and_LR(Callback):
                     pred = pred_base[val]
                 else:
                     pred = pred_base
-                pred = tf.squeeze(tf.argmax(pred, axis=-1))
+                pred = tf.squeeze(tf.argmax(pred, axis=-1))[val]
                 if len(y.shape) > 2:
                     y = tf.argmax(y, axis=-1)
-                x_write = x
+                x_write = x[val]
                 if index is not None:
                     pred = pred[index]
                     x_write = x[index]
-                x_write = self.scale_0_1(tf.cast(self.return_proper_size(x_write), 'float32'))
+                x_write = self.scale_0_1(tf.cast(self.return_proper_size(x_write), 'float32'))*255
                 x_write = tf.image.resize_with_crop_or_pad(x_write, target_height=self.target_image_height,
                                                            target_width=self.target_image_width)
-                pred_write = self.scale_0_1(tf.cast(self.return_proper_size(pred),'float32'))
+                pred_write = self.scale_0_1(tf.cast(self.return_proper_size(pred),'float32'))*255
                 pred_write = tf.image.resize_with_crop_or_pad(pred_write, target_height=self.target_image_height,
                                                               target_width=self.target_image_width)
-                y_write = self.scale_0_1(tf.cast(self.return_proper_size(y), 'float32'))
+                y_write = self.scale_0_1(tf.cast(self.return_proper_size(y), 'float32'))*255
                 y_write = tf.image.resize_with_crop_or_pad(y_write, target_height=self.target_image_height,
                                                            target_width=self.target_image_width)
                 image = tf.concat([x_write, y_write, pred_write], axis=1)
@@ -155,6 +158,30 @@ class Add_Images_and_LR(Callback):
         else:
             with self.file_writer.as_default():
                 tf.summary.scalar('Learning_Rate',tf.keras.backend.get_value(self.model.optimizer.lr), step=epoch)
+
+
+class DiceLoss(tf.keras.losses.Loss):
+    def __init__(self, name='dice_loss', image_shape=(32, 512, 512), d_type='float32'):
+        self.image_shape = image_shape
+        super(DiceLoss, self).__init__(name=name)
+        self._dtype = d_type
+
+    def call(self, y_true, y_pred):
+        spatial_axes = tuple(range(1, len(self.image_shape) - 1))
+        # Just take the outcome prediction
+        y_true = y_true[..., 1]
+        y_true = tf.cast(y_true, self._dtype)
+        y_pred = y_pred[..., 1]
+
+
+        numerator = 2 * tf.reduce_sum(y_true * y_pred, axis=spatial_axes)
+        denominator = tf.reduce_sum(y_true + y_pred, axis=spatial_axes)
+        
+        dice_score = numerator / denominator
+        # To handle the numerical stability and prevent division by zero
+        dice_loss = 1 - tf.math.divide_no_nan(dice_score, tf.reduce_sum(dice_score))
+
+        return dice_loss
 
 
 class MeanDSC(tf.keras.metrics.MeanIoU):
@@ -192,14 +219,9 @@ class MeanDSC(tf.keras.metrics.MeanIoU):
         y_pred = tf.argmax(y_pred, axis=-1)
         y_pred = tf.cast(y_pred, self._dtype)
         # Flatten the input if its rank > 1.
-        if y_pred.shape.ndims > 1:
-            y_pred = tf.reshape(y_pred, [-1])
+        y_pred = tf.reshape(y_pred, [-1])
 
-        if y_true.shape.ndims > 1:
-            y_true = tf.reshape(y_true, [-1])
-
-        if sample_weight is not None and sample_weight.shape.ndims > 1:
-            sample_weight = tf.reshape(sample_weight, [-1])
+        y_true = tf.reshape(y_true, [-1])
 
         # Accumulate the prediction to current confusion matrix.
         current_cm = confusion_matrix.confusion_matrix(
@@ -207,7 +229,7 @@ class MeanDSC(tf.keras.metrics.MeanIoU):
             y_pred,
             self.num_classes,
             weights=sample_weight,
-            dtype='float64')
+            dtype='float32')
         return self.total_cm.assign_add(current_cm)
 
     def result(self):
