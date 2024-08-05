@@ -170,7 +170,7 @@ class TensorBoardImage(TensorBoard):
             if epoch % self.embeddings_freq == 0:
                 # We need a second forward-pass here because we're passing
                 # the `embeddings_data` explicitly. This design allows to pass
-                # arbitrary Data as `embeddings_data` and results from the fact
+                # arbitrary data as `embeddings_data` and results from the fact
                 # that we need to know the size of the `tf.Variable`s which
                 # hold the embeddings in `set_model`. At this point, however,
                 # the `validation_data` is not yet set.
