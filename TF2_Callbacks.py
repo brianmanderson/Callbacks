@@ -21,7 +21,7 @@ class Add_Images_and_LR(Callback):
         self.image_frequency = image_frequency
         self.threshold_x = threshold_x
         if add_images and validation_data is None:
-            AssertionError('Need to provide validation data if you want images!')
+            AssertionError('Need to provide validation Data if you want images!')
         self.add_images = add_images
         self.number_of_images = number_of_images
         self.validation_data = validation_data
@@ -169,7 +169,7 @@ class MeanDSC(tf.keras.metrics.MeanIoU):
             This value must be provided, since a confusion matrix of dimension =
             [num_classes, num_classes] will be allocated.
           name: (Optional) string name of the metric instance.
-          dtype: (Optional) data type of the metric result.
+          dtype: (Optional) Data type of the metric result.
         """
         super(MeanDSC, self).__init__(num_classes=num_classes, name=name, dtype=dtype)
 
@@ -250,7 +250,7 @@ class ReducedMeanDSC(MeanDSC):
         Args:
           classes_of_interest: List of class indexes that you want to calculate the DSC on, example [0, 1, 2, 4, 6]
           name: (Optional) string name of the metric instance.
-          dtype: (Optional) data type of the metric result.
+          dtype: (Optional) Data type of the metric result.
         """
         assert type(classes_of_interest) is tuple or list, 'Provide a list of classes you want the dice on'
         assert classes_of_interest[0] == 0, "You'll still want the background, as it goes by argmax"
@@ -312,7 +312,7 @@ class MeanJaccard(tf.keras.metrics.MeanIoU):
             This value must be provided, since a confusion matrix of dimension =
             [num_classes, num_classes] will be allocated.
           name: (Optional) string name of the metric instance.
-          dtype: (Optional) data type of the metric result.
+          dtype: (Optional) Data type of the metric result.
         """
         super(MeanJaccard, self).__init__(num_classes=num_classes, name=name, dtype=dtype)
 
@@ -396,7 +396,7 @@ class SparseCategoricalMeanDSC(Metric):
             This value must be provided, since a confusion matrix of dimension =
             [num_classes, num_classes] will be allocated.
           name: (Optional) string name of the metric instance.
-          dtype: (Optional) data type of the metric result.
+          dtype: (Optional) Data type of the metric result.
         """
         super(SparseCategoricalMeanDSC, self).__init__(name=name, dtype=dtype)
         self.num_classes = num_classes
@@ -491,7 +491,7 @@ class SparseCategoricalMeanJaccard(Metric):
             This value must be provided, since a confusion matrix of dimension =
             [num_classes, num_classes] will be allocated.
           name: (Optional) string name of the metric instance.
-          dtype: (Optional) data type of the metric result.
+          dtype: (Optional) Data type of the metric result.
         """
         super(SparseCategoricalMeanJaccard, self).__init__(name=name, dtype=dtype)
         self.num_classes = num_classes
