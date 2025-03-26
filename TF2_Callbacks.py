@@ -278,7 +278,7 @@ class MeanDSC(tf.keras.metrics.MeanIoU):
 
         iou = tf.math.divide_no_nan(true_positives, denominator)[1:]
 
-        jaccard = tf.math.divide_no_nan(tf.reduce_sum(iou), num_valid_entries)
+        jaccard = tf.math.divide_no_nan(tf.cast(tf.reduce_sum(iou), tf.float32), tf.cast(num_valid_entries, tf.float32))
         return tf.math.divide_no_nan(tf.multiply(tf.cast(2, 'float32'), jaccard),
                                      tf.add(tf.cast(1, 'float32'), jaccard), name='mean_dsc')
 
